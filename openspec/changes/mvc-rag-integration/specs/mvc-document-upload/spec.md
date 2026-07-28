@@ -1,0 +1,67 @@
+# mvc-document-upload Specification
+
+## Purpose
+
+Web form for uploading supported documents (.cs, .md, .pdf) into the vector store via the existing ingestion pipeline. Supports manual upload through the web UI and automatic directory scanning from the server. Multi-tenant: each document is associated with the uploading user's identity.
+
+## Requirements
+
+| ID | Requirement | Strength |
+|----|-------------|----------|
+| UPLOAD-1 | Render a GET form with a file input and accepted format hints | MUST |
+| UPLOAD-2 | POST handler calls `IngestionService.IngestAsync(fileName, contentType, stream)` | MUST |
+| UPLOAD-3 | Reject unsupported content types with a clear error listing supported types (.cs, .md, .pdf) | MUST |
+| UPLOAD-4 | Enforce a maximum file upload size (default 10 MB, configurable via `appsettings.json`) | SHOULD |
+| UPLOAD-5 | Show success confirmation with document name, size, and ingestion timestamp | MUST |
+| UPLOAD-6 | Handle parser exceptions and storage failures with a user-friendly error message | MUST |
+| UPLOAD-7 | Associate each ingested document with the current user's identity for multi-tenant isolation | SHOULD |
+| UPLOAD-8 | Support a background directory scanner that ingests new files from a configured watch path | SHOULD |
+
+### Scenario: Happy path — supported file uploaded
+
+- GIVEN the user selects a `.cs`, `.md`, or `.pdf` file under the configured size limit
+- WHEN they submit the upload form
+- THEN the file stream is passed to `IngestionService.IngestAsync`
+- AND a success view is rendered showing the document name, file size, and ingestion timestamp
+
+### Scenario: Unsupported file type rejected
+
+- GIVEN the user selects a `.exe` or `.zip` file
+- WHEN they submit the upload form
+- THEN the system rejects the upload with an error message listing supported types (.cs, .md, .pdf)
+- AND no ingestion pipeline call is made
+
+### Scenario: Empty file rejected
+
+- GIVEN the user selects a 0-byte file
+- WHEN they submit the upload form
+- THEN the form re-renders with a validation error indicating the file is empty
+- AND no ingestion pipeline call is made
+
+### Scenario: File exceeds size limit
+
+- GIVEN the user selects a 50 MB file
+- WHEN they submit the upload form
+- THEN the system rejects the upload with a validation error (or `413 Payload Too Large`)
+- AND the error message includes the maximum allowed size
+
+### Scenario: Parser failure on corrupt file
+
+- GIVEN the user uploads a corrupted PDF
+- WHEN `IngestionService.IngestAsync` throws a `NotSupportedException` or parse error
+- THEN the system shows an error message indicating the file could not be parsed
+- AND no partial chunks are persisted in the vector store
+
+### Scenario: Background directory scanner ingests files
+
+- GIVEN a configured watch directory path in `appsettings.json`
+- WHEN a supported file is added to that directory
+- THEN the scanner automatically calls `IngestionService.IngestAsync` for that file
+- AND the document is associated with a system-level user identifier
+
+### Scenario: Multi-tenant document isolation
+
+- GIVEN User A and User B both upload files with the same name `readme.md`
+- WHEN both files are ingested successfully
+- THEN each document is stored under its respective user's document space
+- AND User A's queries only see User A's `readme.md` content

@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RAG.Api/RAG.Api.csproj" />
+    <Project Path="src/RAG.Application/RAG.Application.csproj" />
+    <Project Path="src/RAG.Domain/RAG.Domain.csproj" />
+    <Project Path="src/RAG.Infrastructure/RAG.Infrastructure.csproj" />
+  </Folder>
+  <Project Path="rag/rag.csproj" />
+  <Folder Name="/tests/">
+    <Project Path="tests/RAG.Mvc.Tests/RAG.Mvc.Tests.csproj" />
+  </Folder>
+</Solution>
