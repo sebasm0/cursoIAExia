@@ -1,0 +1,20 @@
+@{
+    ViewData["Title"] = "Documents";
+}
+<h1>Documents</h1>
+<p class="text-muted">
+    Manage documents in the RAG system. Upload new files to make them searchable through the Ask interface.
+</p>
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Upload a Document</h5>
+                <p class="card-text text-muted">
+                    Add a new document (.cs, .md, or .pdf) to the knowledge base. The system will parse and index it for semantic search.
+</p>
+                <a asp-action="Upload" class="btn btn-primary">Upload</a>
+            </div>
+        </div>
+    </div>
+</div>
