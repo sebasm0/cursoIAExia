@@ -41,6 +41,17 @@ public class DocumentsController : Controller
         return View();
     }
 
+    /// <summary>
+    /// UPLOAD-1: the upload form must be reachable via GET at /Documents/Upload
+    /// (the Documents landing page links here). Render-only — all ingestion
+    /// behavior lives in the POST action below.
+    /// </summary>
+    [HttpGet]
+    public IActionResult Upload()
+    {
+        return View();
+    }
+
     [HttpPost]
     [RequestSizeLimit(50 * 1024 * 1024)]
     public async Task<IActionResult> Upload(IFormFile file, CancellationToken ct)
@@ -48,7 +59,7 @@ public class DocumentsController : Controller
         if (file == null || file.Length == 0)
         {
             ModelState.AddModelError("file", "The selected file is empty. Please choose a file with content.");
-            return View("Index");
+            return View();
         }
 
         var extension = Path.GetExtension(file.FileName);
@@ -56,14 +67,14 @@ public class DocumentsController : Controller
         {
             ModelState.AddModelError("file",
                 $"Unsupported file type '{(string.IsNullOrEmpty(extension) ? "(no extension)" : extension)}'. Supported types: .cs, .md, .pdf");
-            return View("Index");
+            return View();
         }
 
         if (file.Length > _maxFileSize)
         {
             ModelState.AddModelError("file",
                 $"File exceeds the maximum upload size of {_maxFileSize / (1024 * 1024)} MB.");
-            return View("Index");
+            return View();
         }
 
         var contentType = AllowedExtensions[extension];

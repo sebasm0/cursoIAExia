@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +23,7 @@ namespace RAG.Mvc.Tests.Controllers;
 /// 5.2 Unit: POST Upload unsupported file type error.
 /// 5.3 Unit: POST Upload 0-byte file error.
 /// 5.5 Integration: POST Upload valid file renders success.
+/// UPLOAD-1: GET Upload renders the form; POST validation re-renders the form.
 /// </summary>
 public class DocumentsControllerTests
 {
@@ -75,9 +77,11 @@ public class DocumentsControllerTests
         // Act
         var result = await controller.Upload(file, CancellationToken.None);
 
-        // Assert
+        // Assert — UPLOAD-1: validation errors re-render the upload form
+        // (View() with no explicit name resolves to the Upload action's view),
+        // NOT the Documents landing page.
         var viewResult = Assert.IsType<ViewResult>(result);
-        Assert.Equal("Index", viewResult.ViewName);
+        Assert.Null(viewResult.ViewName);
 
         Assert.False(controller.ModelState.IsValid);
         var error = Assert.Single(controller.ModelState["file"]?.Errors ?? []);
@@ -98,13 +102,57 @@ public class DocumentsControllerTests
         // Act
         var result = await controller.Upload(file, CancellationToken.None);
 
-        // Assert
+        // Assert — UPLOAD-1: validation errors re-render the upload form.
         var viewResult = Assert.IsType<ViewResult>(result);
-        Assert.Equal("Index", viewResult.ViewName);
+        Assert.Null(viewResult.ViewName);
 
         Assert.False(controller.ModelState.IsValid);
         var error = Assert.Single(controller.ModelState["file"]?.Errors ?? []);
         Assert.Contains("empty", error.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // ── UPLOAD-1: GET Upload renders the form (reachable route) ──
+
+    [Fact]
+    public async Task Upload_Get_RendersUploadForm()
+    {
+        // UPLOAD-1: /Documents/Upload must be reachable via GET and render the
+        // form (the landing page links here). 404/405 before the GET action
+        // existed; 200 + form after.
+        await using var factory = new PolicyTestWebApplicationFactory([Permissions.DocumentsUpload], []);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var response = await client.GetAsync("/Documents/Upload");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("name=\"file\"", body);
+    }
+
+    // ── UPLOAD-1: size-limit validation re-renders the form too ──
+
+    [Fact]
+    public async Task Upload_Post_FileExceedsSizeLimit_ReRendersFormWithMaxSize()
+    {
+        // Triangulation of the third validation branch (file too large): a
+        // distinct input (over-limit file) takes a different code path but
+        // must produce the same re-render contract as the other two.
+        var controller = CreateController(configuration: new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["DocumentUpload:MaxFileSize"] = "100"
+            }!)
+            .Build());
+        var file = CreateFormFile("big.cs", "text/plain", new byte[101]);
+
+        var result = await controller.Upload(file, CancellationToken.None);
+
+        var viewResult = Assert.IsType<ViewResult>(result);
+        Assert.Null(viewResult.ViewName);
+
+        Assert.False(controller.ModelState.IsValid);
+        var error = Assert.Single(controller.ModelState["file"]?.Errors ?? []);
+        Assert.Contains("maximum upload size", error.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     // ── 5.5 Integration: Upload valid file renders success ──
