@@ -37,7 +37,7 @@ public sealed class RecordingEmailSender : IEmailSender
 /// PostgreSQL Identity DbContext for an isolated EF InMemory store and captures
 /// outgoing "emails", keeping the real Identity cookie + SignInManager pipeline.
 /// </summary>
-public sealed class AccountFlowWebApplicationFactory : RagWebApplicationFactoryBase
+public class AccountFlowWebApplicationFactory : RagWebApplicationFactoryBase
 {
     private static readonly InMemoryDatabaseRoot InMemoryRoot = new();
     private readonly string _dbName = $"account-identity-{Guid.NewGuid():N}";
