@@ -16,6 +16,7 @@ Web form for uploading supported documents (.cs, .md, .pdf) into the vector stor
 | UPLOAD-6 | Handle parser exceptions and storage failures with a user-friendly error message | MUST |
 | UPLOAD-7 | Associate each ingested document with the current user's identity for multi-tenant isolation | SHOULD |
 | UPLOAD-8 | Support a background directory scanner that ingests new files from a configured watch path | SHOULD |
+| UPLOAD-9 | Upload flow requires authentication and `documents.upload` permission; anonymous → login redirect, missing permission → access-denied, gate before ingestion | MUST |
 
 ### Scenario: Happy path — supported file uploaded
 
@@ -65,3 +66,23 @@ Web form for uploading supported documents (.cs, .md, .pdf) into the vector stor
 - WHEN both files are ingested successfully
 - THEN each document is stored under its respective user's document space
 - AND User A's queries only see User A's `readme.md` content
+
+### Scenario: Anonymous user redirected to login
+
+- GIVEN no authentication cookie
+- WHEN the user requests the upload page or submits a file
+- THEN the response redirects to `/Account/Login?returnUrl=...`
+- AND no ingestion pipeline call is made
+
+### Scenario: User with documents.upload can upload
+
+- GIVEN an authenticated principal with `permission: documents.upload`
+- WHEN the user uploads a supported file
+- THEN the existing UPLOAD-1..UPLOAD-8 behavior applies (ingest + success view)
+
+### Scenario: User without documents.upload sees access denied
+
+- GIVEN an authenticated principal without `permission: documents.upload`
+- WHEN the user submits the upload form
+- THEN the access-denied page is shown (403)
+- AND no file is persisted
