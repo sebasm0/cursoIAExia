@@ -1,9 +1,17 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using rag.Models;
 using RAG.Application.Services;
+using RAG.Infrastructure.Identity;
 
 namespace rag.Controllers;
 
+/// <summary>
+/// Ask flow (spec ASK-8): requires an authenticated principal carrying the
+/// <c>permission: rag.ask</c> claim, enforced by the policy registered from the
+/// permission catalog (RBAC-4). The gate runs before any RAG pipeline call.
+/// </summary>
+[Authorize(Policy = Permissions.RagAsk)]
 public class AskController : Controller
 {
     private readonly RagService _ragService;

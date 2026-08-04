@@ -11,6 +11,7 @@ using RAG.Application.Services;
 using RAG.Domain.Abstractions;
 using RAG.Domain.Entities;
 using Microsoft.Extensions.AI;
+using RAG.Infrastructure.Identity;
 using RAG.Mvc.Tests.Auth;
 using Xunit;
 
@@ -92,6 +93,10 @@ public class CustomRagWebApplicationFactory : RagWebApplicationFactoryBase
 
         builder.ConfigureServices(services =>
         {
+            // The Ask endpoint is gated by rag.ask (ASK-8) — authenticate the
+            // integration client with that permission.
+            services.AddPolicyTestAuthentication([Permissions.RagAsk], []);
+
             // The Ask flow calls the chat client last — replace the base stub
             // with the canned answer the test asserts on.
             RemoveService<IChatClient>(services);
