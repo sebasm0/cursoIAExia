@@ -1,0 +1,22 @@
+@model ConfirmModalViewModel
+
+@* UDS-7: shared confirm/cancel modal. The trigger button opens this modal and
+   the Confirm button (type=submit + form attribute) is the only submit wired to
+   the destructive form, so the action never fires until the user confirms. *@
+<div class="modal fade" id="@Model.ModalId" tabindex="-1" aria-labelledby="@Model.ModalId-label" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="@Model.ModalId-label">@Model.Title</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">@Model.Message</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="@Model.FormId" class="btn @Model.ConfirmClass">@Model.ConfirmLabel</button>
+            </div>
+        </div>
+    </div>
+</div>
