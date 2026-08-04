@@ -33,6 +33,14 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Documents" asp-action="Index">Upload</a>
                         </li>
+                        @if (User.HasClaim(Permissions.ClaimType, Permissions.AdminUsers)
+                            || User.HasClaim(Permissions.ClaimType, Permissions.AdminRoles)
+                            || User.HasClaim(Permissions.ClaimType, Permissions.AdminPermissions))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Admin" asp-action="Users">Admin</a>
+                            </li>
+                        }
                     </ul>
                     <ul class="navbar-nav">
                         @if (SignInManager.IsSignedIn(User))
