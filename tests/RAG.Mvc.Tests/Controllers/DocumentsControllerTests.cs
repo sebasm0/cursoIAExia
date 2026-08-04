@@ -12,6 +12,7 @@ using rag.Models;
 using RAG.Application.Services;
 using RAG.Domain.Abstractions;
 using RAG.Domain.Entities;
+using RAG.Infrastructure.Identity;
 using RAG.Mvc.Tests.Auth;
 using Xunit;
 
@@ -147,6 +148,10 @@ public class CustomUploadWebApplicationFactory : RagWebApplicationFactoryBase
 
         builder.ConfigureServices(services =>
         {
+            // The Upload endpoint is gated by documents.upload (UPLOAD-9) —
+            // authenticate the integration client with that permission.
+            services.AddPolicyTestAuthentication([Permissions.DocumentsUpload], []);
+
             // Replace the real parsers with a stub parser that returns canned text
             RemoveServices<IDocumentParser>(services);
 

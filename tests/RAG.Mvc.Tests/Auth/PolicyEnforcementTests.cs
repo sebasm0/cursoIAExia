@@ -99,4 +99,86 @@ public class PolicyEnforcementTests
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Equal("/Account/AccessDenied", response.Headers.Location?.AbsolutePath);
     }
+
+    // ── UPLOAD-9 / RBAC-4 / RBAC-5: Upload requires the documents.upload permission ──
+
+    private static MultipartFormDataContent CreateUploadContent()
+    {
+        var fileContent = "public class Hello { }";
+        // No `using` on the stream here: it must stay alive until the client
+        // sends the request (the client disposes the content afterwards).
+        var fileStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(fileContent));
+        return new MultipartFormDataContent
+        {
+            { new StreamContent(fileStream), "file", "Hello.cs" }
+        };
+    }
+
+    [Fact]
+    public async Task Upload_Get_Anonymous_RedirectsToLogin()
+    {
+        await using var factory = new AnonymousWebApplicationFactory();
+        using var client = CreateClient(factory);
+
+        var response = await client.GetAsync("/Documents");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/Account/Login", response.Headers.Location?.AbsolutePath);
+        Assert.Contains("returnUrl", response.Headers.Location?.Query);
+    }
+
+    [Fact]
+    public async Task Upload_Post_Anonymous_RedirectsToLogin()
+    {
+        await using var factory = new AnonymousWebApplicationFactory();
+        using var client = CreateClient(factory);
+
+        // UPLOAD-9: the 302 fires before any ingestion call.
+        var response = await client.PostAsync("/Documents/Upload", CreateUploadContent());
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/Account/Login", response.Headers.Location?.AbsolutePath);
+        Assert.Contains("returnUrl", response.Headers.Location?.Query);
+    }
+
+    [Fact]
+    public async Task Upload_Get_WithDocumentsUploadPermission_ReturnsOk()
+    {
+        await using var factory = new PolicyTestWebApplicationFactory([Permissions.DocumentsUpload], []);
+        using var client = CreateClient(factory);
+
+        var response = await client.GetAsync("/Documents");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Upload_Get_WithoutDocumentsUploadPermission_RoutesToAccessDenied()
+    {
+        await using var factory = new PolicyTestWebApplicationFactory([Permissions.RagAsk], ["Viewer"]);
+        using var client = CreateClient(factory);
+
+        var response = await client.GetAsync("/Documents");
+
+        // RBAC-5: routed to the access-denied page — never the login page.
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/Account/AccessDenied", response.Headers.Location?.AbsolutePath);
+
+        var denied = await client.GetAsync(response.Headers.Location!.AbsolutePath);
+        var body = await denied.Content.ReadAsStringAsync();
+        Assert.Contains("Access denied", body);
+    }
+
+    [Fact]
+    public async Task Upload_Post_WithoutDocumentsUploadPermission_RoutesToAccessDenied()
+    {
+        await using var factory = new PolicyTestWebApplicationFactory([Permissions.RagAsk], ["Viewer"]);
+        using var client = CreateClient(factory);
+
+        // UPLOAD-9: the upload POST is denied before the file is ingested/persisted.
+        var response = await client.PostAsync("/Documents/Upload", CreateUploadContent());
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/Account/AccessDenied", response.Headers.Location?.AbsolutePath);
+    }
 }
