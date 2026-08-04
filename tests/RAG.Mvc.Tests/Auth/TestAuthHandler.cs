@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -83,6 +84,31 @@ public static class TestAuthExtensions
                     options.Permissions = permissions;
                     options.Roles = roles;
                 });
+
+        return services;
+    }
+
+    /// <summary>
+    /// Policy-enforcement wiring (design D6): the Test handler authenticates every
+    /// request while the real Identity cookie handler stays the challenge/forbid
+    /// scheme, so anonymous requests redirect to the LoginPath and denied requests
+    /// to the AccessDeniedPath exactly like production. AddIdentity pins
+    /// DefaultAuthenticateScheme to Identity.Application, so it must be overridden
+    /// to the Test scheme here.
+    /// </summary>
+    public static IServiceCollection AddPolicyTestAuthentication(
+        this IServiceCollection services,
+        string[] permissions,
+        string[] roles)
+    {
+        services.AddTestAuthentication(permissions, roles);
+
+        services.Configure<AuthenticationOptions>(options =>
+        {
+            options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
+            options.DefaultChallengeScheme = IdentityConstants.ApplicationScheme;
+            options.DefaultForbidScheme = IdentityConstants.ApplicationScheme;
+        });
 
         return services;
     }
