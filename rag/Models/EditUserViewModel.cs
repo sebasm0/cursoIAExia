@@ -12,8 +12,12 @@ public class EditUserViewModel
 
     public string Email { get; set; } = string.Empty;
 
-    /// <summary>Roles the user currently has (checked in the form).</summary>
-    public IReadOnlyList<string> SelectedRoles { get; set; } = [];
+    /// <summary>
+    /// Roles the user currently has (checked in the form). Posted by the role
+    /// checkboxes — <see cref="List{T}"/> because read-only interface collections
+    /// do not bind from form data.
+    /// </summary>
+    public List<string> SelectedRoles { get; set; } = [];
 
     /// <summary>Role names available for assignment (populated by the admin page).</summary>
     public IReadOnlyList<string> AvailableRoles { get; set; } = [];

@@ -1,0 +1,46 @@
+@model UsersIndexViewModel
+@{
+    ViewData["Title"] = "Users";
+    var currentUserId = ViewData["CurrentUserId"]?.ToString();
+}
+
+<h1 class="display-6">Users</h1>
+
+@if (TempData["AdminError"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+<p>
+    <a asp-action="UsersCreate" class="btn btn-primary btn-sm">Create user</a>
+</p>
+
+<table class="table table-sm table-hover">
+    <thead>
+        <tr>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Roles</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var user in Model.Users)
+        {
+            <tr>
+                <td>@user.UserName</td>
+                <td>@user.Email</td>
+                <td>@string.Join(", ", user.Roles)</td>
+                <td class="text-end">
+                    <a asp-action="UsersEdit" asp-route-id="@user.Id" class="btn btn-outline-secondary btn-sm">Edit</a>
+                    @if (user.Id.ToString() != currentUserId)
+                    {
+                        <form class="d-inline" asp-action="UsersDelete" asp-route-id="@user.Id" method="post">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
