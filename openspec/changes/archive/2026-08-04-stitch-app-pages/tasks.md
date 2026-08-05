@@ -45,7 +45,7 @@ Chain strategy: feature-branch-chain
 
 ## Slice C — Admin (PR 3)
 
-- [ ] C1 Generate Admin screens (Users, Roles, matrix). [ADMIN-8/9]
-- [ ] C2 Redesign `rag/Views/Admin/Users/{Index,Create,Edit}.cshtml`: responsive table, token forms, validation re-render. [ADMIN-8] ~200ln
-- [ ] C3 Redesign `rag/Views/Admin/Roles/{Index,Create,Edit}.cshtml` + checkbox permission matrix; grants persist as claims. [ADMIN-9] ~200ln
-- [ ] C4 Tests: admin views 200 under `admin.users`/`admin.permissions`; matrix persists; narrow-viewport smoke.
+- [x] C1 Generate Admin screens (Users, Roles, matrix). [ADMIN-8/9]
+- [x] C2 Redesign `rag/Views/Admin/Users/{Index,Create,Edit}.cshtml`: responsive table, token forms, validation re-render. [ADMIN-8] ~200ln
+- [x] C3 Redesign `rag/Views/Admin/Roles/{Index,Create,Edit}.cshtml` + checkbox permission matrix; grants persist as claims. [ADMIN-9] ~200ln
+- [x] C4 Tests: admin views 200 under `admin.users`/`admin.permissions`; matrix persists; narrow-viewport smoke.

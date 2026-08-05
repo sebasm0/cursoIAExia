@@ -3,46 +3,51 @@
     ViewData["Title"] = "Create user";
 }
 
-<h1 class="display-6">Create user</h1>
+<div class="row justify-content-center py-4">
+    <div class="col-12 col-md-8 col-lg-6">
+        <div class="card form-card">
+            <div class="card-body p-4 p-md-5">
+                <h1 class="h3 mb-1">Create user</h1>
+                <p class="text-muted mb-4">Create an account and assign its initial roles.</p>
 
-<div class="row">
-    <div class="col-md-6 col-lg-5">
-        <form asp-action="UsersCreate" method="post">
-            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                <form asp-action="UsersCreate" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-            <div class="mb-3">
-                <label asp-for="UserName" class="form-label"></label>
-                <input asp-for="UserName" class="form-control" autocomplete="off" />
-                <span asp-validation-for="UserName" class="text-danger"></span>
-            </div>
-
-            <div class="mb-3">
-                <label asp-for="Email" class="form-label"></label>
-                <input asp-for="Email" class="form-control" autocomplete="off" />
-                <span asp-validation-for="Email" class="text-danger"></span>
-            </div>
-
-            <div class="mb-3">
-                <label asp-for="Password" class="form-label"></label>
-                <input asp-for="Password" class="form-control" autocomplete="new-password" />
-                <span asp-validation-for="Password" class="text-danger"></span>
-            </div>
-
-            <fieldset class="mb-3">
-                <legend class="form-label mb-1">Roles</legend>
-                @foreach (var role in Model.AvailableRoles)
-                {
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="SelectedRoles"
-                               value="@role" id="role-@role" />
-                        <label class="form-check-label" for="role-@role">@role</label>
+                    <div class="mb-3">
+                        <label asp-for="UserName" class="form-label"></label>
+                        <input asp-for="UserName" class="form-control" autocomplete="off" />
+                        <span asp-validation-for="UserName" class="text-danger"></span>
                     </div>
-                }
-            </fieldset>
 
-            <button type="submit" class="btn btn-primary">Create user</button>
-            <a asp-action="Users" class="btn btn-link">Back to list</a>
-        </form>
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label"></label>
+                        <input asp-for="Email" class="form-control" autocomplete="off" />
+                        <span asp-validation-for="Email" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label"></label>
+                        <input asp-for="Password" class="form-control" autocomplete="new-password" />
+                        <span asp-validation-for="Password" class="text-danger"></span>
+                    </div>
+
+                    <fieldset class="mb-4">
+                        <legend class="form-label mb-2">Roles</legend>
+                        @foreach (var role in Model.AvailableRoles)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="SelectedRoles"
+                                       value="@role" id="role-@role" />
+                                <label class="form-check-label" for="role-@role">@role</label>
+                            </div>
+                        }
+                    </fieldset>
+
+                    <button type="submit" class="btn btn-primary">Create user</button>
+                    <a asp-action="Users" class="btn btn-link">Back to list</a>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 
