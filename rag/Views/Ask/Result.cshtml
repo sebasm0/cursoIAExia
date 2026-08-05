@@ -49,4 +49,17 @@
             <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">Back to Home</a>
         </div>
     }
+    else
+    {
+        <div class="card">
+            <div class="card-body p-4">
+                <h1 class="h4 mb-2">No answer was generated</h1>
+                <p class="mb-0">The RAG service returned an empty response. Please try your question again or check back later.</p>
+                <div class="mt-4 d-flex gap-2">
+                    <a asp-action="Index" class="btn btn-primary">Try Again</a>
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">Back to Home</a>
+                </div>
+            </div>
+        </div>
+    }
 </div>

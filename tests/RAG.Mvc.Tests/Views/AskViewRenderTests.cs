@@ -92,6 +92,30 @@ public class AskViewRenderTests
         Assert.Contains("Ask another", body);
     }
 
+    // ── ASK-13: empty answer renders a non-blank fallback ──
+
+    [Fact]
+    public async Task Ask_Post_EmptyResponse_RendersFallback()
+    {
+        await using var factory = new EmptyAnswerRagWebApplicationFactory();
+        using var client = CreateClient(factory);
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/Ask", token, ("Query", "Produce no answer")));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        // ASK-13: neither ErrorMessage nor Answer is populated — the else
+        // branch renders a non-blank fallback instead of an empty page.
+        Assert.Contains("No answer was generated", body);
+        // Retry / back-navigation actions remain available.
+        Assert.Contains("Try Again", body);
+        Assert.Contains("Back to Home", body);
+        // The fallback must not collide with the error branch.
+        Assert.DoesNotContain("Service unavailable", body);
+    }
+
     // ── ASK-11: service-unavailable state per design system ──
 
     [Fact]
@@ -139,6 +163,37 @@ public class FailingRagWebApplicationFactory : RagWebApplicationFactoryBase
                     It.IsAny<ChatOptions?>(),
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new InvalidOperationException("Ollama is unreachable"));
+
+            services.AddSingleton<IChatClient>(mockChat.Object);
+        });
+    }
+}
+
+/// <summary>
+/// Ask-flow factory where the chat client returns an empty assistant message:
+/// <c>RagService.AskAsync</c> succeeds with "" (no exception), so the controller
+/// renders the result view with BOTH <c>ErrorMessage</c> and <c>Answer</c> empty
+/// — the ASK-13 scenario that previously produced a blank page.
+/// </summary>
+public class EmptyAnswerRagWebApplicationFactory : RagWebApplicationFactoryBase
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+
+        builder.ConfigureServices(services =>
+        {
+            services.AddPolicyTestAuthentication([Permissions.RagAsk], []);
+
+            RemoveService<IChatClient>(services);
+
+            var mockChat = new Mock<IChatClient>();
+            mockChat
+                .Setup(c => c.GetResponseAsync(
+                    It.IsAny<IList<ChatMessage>>(),
+                    It.IsAny<ChatOptions?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ChatResponse(new ChatMessage(ChatRole.Assistant, "")));
 
             services.AddSingleton<IChatClient>(mockChat.Object);
         });
