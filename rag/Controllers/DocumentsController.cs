@@ -1,9 +1,18 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using rag.Models;
 using RAG.Application.Services;
+using RAG.Infrastructure.Identity;
 
 namespace rag.Controllers;
 
+/// <summary>
+/// Document upload flow (spec UPLOAD-9): requires an authenticated principal
+/// carrying the <c>permission: documents.upload</c> claim, enforced by the policy
+/// registered from the permission catalog (RBAC-4). The gate runs before any
+/// ingestion call.
+/// </summary>
+[Authorize(Policy = Permissions.DocumentsUpload)]
 public class DocumentsController : Controller
 {
     private readonly IngestionService _ingestionService;

@@ -1,0 +1,45 @@
+@model RolesIndexViewModel
+@{
+    ViewData["Title"] = "Roles";
+}
+
+<h1 class="display-6">Roles</h1>
+
+@if (TempData["AdminError"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+<p>
+    <a asp-action="RolesCreate" class="btn btn-primary btn-sm">Create role</a>
+</p>
+
+<table class="table table-sm table-hover">
+    <thead>
+        <tr>
+            <th>Role</th>
+            <th>Permissions</th>
+            <th>Users</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var role in Model.Roles)
+        {
+            <tr>
+                <td>@role.Name</td>
+                <td>@role.PermissionCount</td>
+                <td>@role.MemberCount</td>
+                <td class="text-end">
+                    <a asp-action="RolesEdit" asp-route-id="@role.Id" class="btn btn-outline-secondary btn-sm">Permissions</a>
+                    @if (!role.IsBuiltIn && role.MemberCount == 0)
+                    {
+                        <form class="d-inline" asp-action="RolesDelete" asp-route-id="@role.Id" method="post">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

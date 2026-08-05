@@ -1,5 +1,7 @@
 using RAG.Application;
 using RAG.Infrastructure;
+using RAG.Infrastructure.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,7 +35,23 @@ switch (aiProvider)
 builder.Services.AddApplication();
 builder.Services.AddRagInfrastructure(builder.Configuration);
 
+// Identity + RBAC (design D6): cookie auth, permission policies, claims factory.
+builder.Services.AddRagIdentity(builder.Configuration);
+
 var app = builder.Build();
+
+// ── Identity startup: migrate + idempotent seed (design D2) ──
+// Guarded by Identity:ApplyMigrationsOnStartup (default true) so tests and
+// local dev can opt out without touching a real PostgreSQL database.
+if (builder.Configuration.GetValue<bool>("Identity:ApplyMigrationsOnStartup", true))
+{
+    using var scope = app.Services.CreateScope();
+    var identityContext = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+    await identityContext.Database.MigrateAsync();
+
+    var seeder = scope.ServiceProvider.GetRequiredService<IdentitySeeder>();
+    await seeder.SeedAsync();
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -45,6 +63,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();

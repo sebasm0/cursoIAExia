@@ -11,6 +11,8 @@ using RAG.Application.Services;
 using RAG.Domain.Abstractions;
 using RAG.Domain.Entities;
 using Microsoft.Extensions.AI;
+using RAG.Infrastructure.Identity;
+using RAG.Mvc.Tests.Auth;
 using Xunit;
 
 namespace RAG.Mvc.Tests.Controllers;
@@ -79,20 +81,26 @@ public class AskControllerTests
 }
 
 /// <summary>
-/// Custom WebApplicationFactory that stubs AI and infrastructure services
-/// so integration tests can run without Ollama, PostgreSQL, etc.
+/// Custom WebApplicationFactory for the Ask flow: inherits the shared AI +
+/// infrastructure stubs from <see cref="RagWebApplicationFactoryBase"/> and
+/// overrides only the chat client with the canned answer used by the assertion.
 /// </summary>
-public class CustomRagWebApplicationFactory : WebApplicationFactory<Program>
+public class CustomRagWebApplicationFactory : RagWebApplicationFactoryBase
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        base.ConfigureWebHost(builder);
+
         builder.ConfigureServices(services =>
         {
-            // Remove real AI client registrations
-            RemoveService<IChatClient>(services);
-            RemoveService<IEmbeddingGenerator<string, Embedding<float>>>(services);
+            // The Ask endpoint is gated by rag.ask (ASK-8) — authenticate the
+            // integration client with that permission.
+            services.AddPolicyTestAuthentication([Permissions.RagAsk], []);
 
-            // Add stubbed AI clients
+            // The Ask flow calls the chat client last — replace the base stub
+            // with the canned answer the test asserts on.
+            RemoveService<IChatClient>(services);
+
             var mockChat = new Mock<IChatClient>();
             mockChat
                 .Setup(c => c.GetResponseAsync(
@@ -101,50 +109,7 @@ public class CustomRagWebApplicationFactory : WebApplicationFactory<Program>
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ChatResponse(new ChatMessage(ChatRole.Assistant, "The capital of France is Paris.")));
 
-            var mockEmbedding = new Mock<IEmbeddingGenerator<string, Embedding<float>>>();
-            mockEmbedding
-                .Setup(g => g.GenerateAsync(
-                    It.IsAny<IEnumerable<string>>(),
-                    It.IsAny<EmbeddingGenerationOptions?>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new GeneratedEmbeddings<Embedding<float>>(
-                    [new Embedding<float>(new ReadOnlyMemory<float>([0.1f, 0.2f, 0.3f]))]));
-
             services.AddSingleton<IChatClient>(mockChat.Object);
-            services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(mockEmbedding.Object);
-
-            // Stub infrastructure services that need real DB/Ollama
-            RemoveService<IVectorStore>(services);
-
-            var mockVectorStore = new Mock<IVectorStore>();
-            mockVectorStore
-                .Setup(v => v.HybridSearchAsync(
-                    It.IsAny<ReadOnlyMemory<float>>(),
-                    It.IsAny<string>(),
-                    It.IsAny<int>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync([]);
-
-            services.AddSingleton<IVectorStore>(mockVectorStore.Object);
-
-            RemoveService<IReranker>(services);
-
-            var mockReranker = new Mock<IReranker>();
-            mockReranker
-                .Setup(r => r.RerankAsync(
-                    It.IsAny<string>(),
-                    It.IsAny<IReadOnlyList<SearchResult>>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync([]);
-
-            services.AddSingleton<IReranker>(mockReranker.Object);
         });
-    }
-
-    private static void RemoveService<T>(IServiceCollection services) where T : class
-    {
-        var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(T));
-        if (descriptor != null)
-            services.Remove(descriptor);
     }
 }

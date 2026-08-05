@@ -15,6 +15,7 @@ Web form for querying the RAG system. Users type a question and receive an AI-ge
 | ASK-5 | Reject empty or whitespace-only queries with both client-side and server-side validation | MUST |
 | ASK-6 | Scope search results to the current user's document space for multi-tenant isolation | SHOULD |
 | ASK-7 | LLM provider (`IChatClient`, `IEmbeddingGenerator`) configurable via `appsettings.json` — not hardcoded | MUST |
+| ASK-8 | Ask flow requires authentication and `rag.ask` permission; anonymous → login redirect, missing permission → access-denied, gate before pipeline | MUST |
 
 ### Scenario: Happy path — valid question answered
 
@@ -58,3 +59,22 @@ Web form for querying the RAG system. Users type a question and receive an AI-ge
 - WHEN User A asks a question
 - THEN only documents belonging to User A are searched
 - AND User B's documents do not influence User A's results
+
+### Scenario: Anonymous user redirected to login
+
+- GIVEN no authentication cookie
+- WHEN the user requests the Ask page or submits a question
+- THEN the response redirects to `/Account/Login?returnUrl=...`
+- AND no RAG pipeline call is made
+
+### Scenario: User with rag.ask can ask
+
+- GIVEN an authenticated principal with `permission: rag.ask`
+- WHEN the user submits a valid question
+- THEN the existing ASK-1..ASK-7 behavior applies (answer rendered with citations)
+
+### Scenario: User without rag.ask sees access denied
+
+- GIVEN an authenticated principal without `permission: rag.ask`
+- WHEN the user requests the Ask page
+- THEN the access-denied page is shown (403)

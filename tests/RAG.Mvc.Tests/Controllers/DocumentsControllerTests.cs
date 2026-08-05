@@ -12,6 +12,8 @@ using rag.Models;
 using RAG.Application.Services;
 using RAG.Domain.Abstractions;
 using RAG.Domain.Entities;
+using RAG.Infrastructure.Identity;
+using RAG.Mvc.Tests.Auth;
 using Xunit;
 
 namespace RAG.Mvc.Tests.Controllers;
@@ -134,42 +136,21 @@ public class DocumentsControllerTests
 }
 
 /// <summary>
-/// Custom WebApplicationFactory that stubs AI + infrastructure services
-/// for DocumentsController integration tests.
+/// Custom WebApplicationFactory for the Upload flow: inherits the shared AI +
+/// infrastructure stubs from <see cref="RagWebApplicationFactoryBase"/> and
+/// overrides only the parsers/chunker used by the ingest pipeline.
 /// </summary>
-public class CustomUploadWebApplicationFactory : WebApplicationFactory<Program>
+public class CustomUploadWebApplicationFactory : RagWebApplicationFactoryBase
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        base.ConfigureWebHost(builder);
+
         builder.ConfigureServices(services =>
         {
-            // ── Stub AI clients ──
-            RemoveService<IChatClient>(services);
-            RemoveService<IEmbeddingGenerator<string, Embedding<float>>>(services);
-
-            var mockEmbedding = new Mock<IEmbeddingGenerator<string, Embedding<float>>>();
-            mockEmbedding
-                .Setup(g => g.GenerateAsync(
-                    It.IsAny<IEnumerable<string>>(),
-                    It.IsAny<EmbeddingGenerationOptions?>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new GeneratedEmbeddings<Embedding<float>>(
-                    [new Embedding<float>(new ReadOnlyMemory<float>([0.1f, 0.2f, 0.3f]))]));
-
-            services.AddSingleton<IChatClient>(Mock.Of<IChatClient>());
-            services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(mockEmbedding.Object);
-
-            // ── Stub infrastructure (IDocumentParser, IChunker, IVectorStore) ──
-            RemoveService<IVectorStore>(services);
-
-            var mockVectorStore = new Mock<IVectorStore>();
-            mockVectorStore
-                .Setup(v => v.StoreChunksBatchAsync(
-                    It.IsAny<IList<(DocumentChunk Chunk, ReadOnlyMemory<float> Embedding)>>(),
-                    It.IsAny<CancellationToken>()))
-                .Returns(Task.CompletedTask);
-
-            services.AddSingleton<IVectorStore>(mockVectorStore.Object);
+            // The Upload endpoint is gated by documents.upload (UPLOAD-9) —
+            // authenticate the integration client with that permission.
+            services.AddPolicyTestAuthentication([Permissions.DocumentsUpload], []);
 
             // Replace the real parsers with a stub parser that returns canned text
             RemoveServices<IDocumentParser>(services);
@@ -197,19 +178,5 @@ public class CustomUploadWebApplicationFactory : WebApplicationFactory<Program>
 
             services.AddSingleton<IChunker>(stubChunker.Object);
         });
-    }
-
-    private static void RemoveService<T>(IServiceCollection services) where T : class
-    {
-        var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(T));
-        if (descriptor != null)
-            services.Remove(descriptor);
-    }
-
-    private static void RemoveServices<T>(IServiceCollection services) where T : class
-    {
-        var descriptors = services.Where(d => d.ServiceType == typeof(T)).ToList();
-        foreach (var d in descriptors)
-            services.Remove(d);
     }
 }
