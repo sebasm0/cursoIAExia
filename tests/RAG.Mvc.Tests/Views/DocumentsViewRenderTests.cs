@@ -81,6 +81,11 @@ public class DocumentsViewRenderTests
         Assert.Contains("name=\"file\"", body);
         Assert.Contains("Unsupported file type", body);
         Assert.Contains(".cs, .md, .pdf", body);
+        // UPLOAD-12: the server-side error renders bound to the file field
+        // (field-validation-error span with data-valmsg-for="file"), so it is
+        // visible with JavaScript disabled — not only via the client-side script.
+        Assert.Contains("field-validation-error", body);
+        Assert.Contains("data-valmsg-for=\"file\"", body);
     }
 
     // ── UPLOAD-10: success view shows document details ──
