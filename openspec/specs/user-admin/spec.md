@@ -119,6 +119,25 @@ The role-edit permission matrix view MUST follow the design system and MUST pres
 - THEN the full permission catalog displays as checkboxes with token-based styling
 - AND toggling and posting persists grants as role claims (ADMIN-6 unchanged)
 
+### Requirement: ADMIN-10 — Delete-gated actions degrade gracefully with JavaScript disabled
+
+The users and roles index delete forms MUST remain submit-able with JavaScript disabled: each delete form MUST render a `<noscript>` submit button so the destructive POST works without the confirm modal. For JavaScript-enabled users the modal path (UDS-7) MUST remain the unchanged interactive flow. Existing delete-guard behavior MUST remain unchanged: an admin MUST NOT delete their own account, and built-in or member-bearing roles MUST NOT be deleted.
+
+#### Scenario: No-JS admin submits delete directly
+
+- GIVEN an authenticated admin with `admin.users` (or `admin.roles`) and JavaScript disabled
+- WHEN they submit the delete form for a deletable user (or a deletable role with no members)
+- THEN the destructive POST is sent to the delete action
+- AND the existing guard logic (own-account / built-in / member-bearing protections) still applies
+
+#### Scenario: JS-enabled user keeps the modal path
+
+- GIVEN an authenticated admin with JavaScript enabled viewing a delete row
+- WHEN they click Delete
+- THEN the confirm modal opens and blocks until confirm or cancel (UDS-7 unchanged)
+- AND the `<noscript>` fallback content renders inert / non-interactive for scripting-enabled browsers
+- AND existing row markup and behavior for JS users remain unchanged
+
 ## Assumptions
 
 - Admin pages are plain Razor views styled per the design system (ADMIN-8/ADMIN-9).
