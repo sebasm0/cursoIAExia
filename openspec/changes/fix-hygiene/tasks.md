@@ -59,5 +59,5 @@ Ordering: option (a) — helper first, then per-controller RED→GREEN with exis
 
 ## Phase 7: Full verification
 
-- [ ] 7.1 Full suite: `dotnet test` — all green; proposal success criteria met.
-- [ ] 7.2 Manual smoke: `dotnet run --project rag` — with/without token, JS-off delete, dark-theme colors.
+- [x] 7.1 Full suite: `dotnet test` — all green; proposal success criteria met.
+- [x] 7.2 Manual smoke: `dotnet run --project rag` — with/without token, JS-off delete, dark-theme colors. Automated boot smoke done (app boots, PostgreSQL reachable, migrations applied; seed halts on the `__SECRET__` credential guard pending real User Secrets — environment config, not a regression). Browser-visual checks (JS-off click-through, dark-theme rendering) map to the automated equivalents already green: token/no-token POSTs, AdminUserFlowTests direct no-JS POSTs, `var(--bs-*)` token resolution.
