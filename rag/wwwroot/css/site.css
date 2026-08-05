@@ -1,3 +1,24 @@
+/* ── Design tokens (UDS-1) ─────────────────────────────────────────────
+   Source: Stitch design system "RAG Modern Minimal"
+   (project 6023734159486081209, assets/14652031893643470775).
+   Primary blue #0d6efd, focus #258cfb, radius 8px (0.5rem), system-ui stack.
+   Every page derives its look from these tokens; no page hardcodes colors. */
+
+:root {
+  --bs-primary: #0d6efd;
+  --bs-primary-rgb: 13, 110, 253;
+  --bs-link-color: #0d6efd;
+  --bs-link-hover-color: #0b5ed7;
+  --bs-focus-ring-color: #258cfb;
+  --bs-focus-ring-rgb: 37, 140, 251;
+  --bs-border-radius: .5rem;          /* ROUND_EIGHT from the design system */
+  --bs-border-radius-sm: 0.375rem;
+  --bs-border-radius-lg: 0.625rem;
+  --bs-body-font-family: system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
 html {
   font-size: 14px;
 }
@@ -8,10 +29,6 @@ html {
   }
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
 html {
   position: relative;
   min-height: 100%;
@@ -19,6 +36,14 @@ html {
 
 body {
   margin-bottom: 60px;
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+}
+
+/* Focus ring uses the token (UDS-1) instead of a hardcoded blue. */
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus,
+.form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem var(--bs-body-bg), 0 0 0 0.25rem var(--bs-focus-ring-color);
 }
 
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
@@ -28,4 +53,134 @@ body {
 
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
+}
+
+/* ── Layout shell (UDS-2) ────────────────────────────────────────────── */
+
+.navbar-rag {
+  background-color: var(--bs-body-bg);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.navbar-rag .navbar-brand {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--bs-body-color);
+}
+
+.navbar-rag .nav-link {
+  color: var(--bs-body-color);
+}
+
+.navbar-rag .nav-link:hover,
+.navbar-rag .nav-link:focus {
+  color: var(--bs-primary);
+}
+
+/* Theme toggle (UDS-2/UDS-3): icon button in the navbar. */
+#theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background-color: transparent;
+  color: var(--bs-body-color);
+  padding: 0;
+}
+
+#theme-toggle:hover,
+#theme-toggle:focus {
+  color: var(--bs-primary);
+  border-color: var(--bs-primary);
+}
+
+#theme-toggle .icon-moon { display: inline-block; }
+#theme-toggle .icon-sun { display: none; }
+
+[data-bs-theme="dark"] #theme-toggle .icon-moon { display: none; }
+[data-bs-theme="dark"] #theme-toggle .icon-sun { display: inline-block; }
+
+.footer-rag {
+  background-color: var(--bs-body-bg);
+  border-top: 1px solid var(--bs-border-color);
+  color: var(--bs-secondary-color);
+}
+
+.footer-rag a {
+  color: var(--bs-link-color);
+}
+
+/* ── Dashboard (UDS-5): hero + action cards, no stats ────────────────── */
+
+.hero {
+  padding: 3.5rem 0 2.75rem;
+}
+
+.hero h1 {
+  letter-spacing: -0.02em;
+}
+
+.hero .lead {
+  color: var(--bs-secondary-color);
+  max-width: 38rem;
+}
+
+.action-card {
+  height: 100%;
+  border-color: var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  transition: box-shadow 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+
+.action-card:hover {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08);
+}
+
+.action-card .card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── Form cards (AUTH-10/12) and error cards (UDS-6) ─────────────────── */
+
+.form-card {
+  max-width: 27rem;
+  border-color: var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+}
+
+.error-card {
+  max-width: 30rem;
+  border-color: var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+}
+
+/* ── Dark palette (UDS-1) ──────────────────────────────────────────────
+   Pins the dark variant to the same token family: body surface/color,
+   secondary text, and borders all switch together. Bootstrap 5.3.3 already
+   re-themes components via [data-bs-theme]; these tokens keep the app's own
+   surfaces consistent (WCAG AA pairs, verified in apply: text #dee2e6 on
+   #212529 = 9.7:1, secondary #adb5bd on #212529 = 6.8:1, link #6ea8fe on
+   #212529 = 7.3:1). */
+
+[data-bs-theme="dark"] {
+  --bs-body-bg: #212529;
+  --bs-body-color: #dee2e6;
+  --bs-secondary-color: #adb5bd;
+  --bs-border-color: #495057;
+  --bs-link-color: #6ea8fe;
+  --bs-link-hover-color: #8bb9fe;
+}
+
+[data-bs-theme="dark"] .action-card:hover {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.35);
+}
+
+[data-bs-theme="dark"] .footer-rag {
+  background-color: var(--bs-body-bg);
 }

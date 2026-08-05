@@ -3,33 +3,38 @@
     ViewData["Title"] = "Log in";
 }
 
-<h1 class="display-6">Log in</h1>
+<div class="row justify-content-center py-4">
+    <div class="col-12 col-md-8 col-lg-5">
+        <div class="card form-card">
+            <div class="card-body p-4 p-md-5">
+                <h1 class="h3 mb-1">Log in</h1>
+                <p class="text-secondary mb-4">Access your account to ask questions and manage documents.</p>
 
-<div class="row">
-    <div class="col-md-6 col-lg-5">
-        <form asp-action="Login" method="post">
-            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                <form asp-action="Login" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-            <div class="mb-3">
-                <label asp-for="UserName" class="form-label"></label>
-                <input asp-for="UserName" class="form-control" autocomplete="username" />
-                <span asp-validation-for="UserName" class="text-danger"></span>
+                    <div class="mb-3">
+                        <label asp-for="UserName" class="form-label"></label>
+                        <input asp-for="UserName" class="form-control" autocomplete="username" />
+                        <span asp-validation-for="UserName" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label"></label>
+                        <input asp-for="Password" class="form-control" autocomplete="current-password" />
+                        <span asp-validation-for="Password" class="text-danger"></span>
+                    </div>
+
+                    <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+
+                    <button type="submit" class="btn btn-primary w-100">Log in</button>
+                </form>
+
+                <p class="mt-3 mb-0 text-center">
+                    <a asp-action="ForgotPassword">Forgot your password?</a>
+                </p>
             </div>
-
-            <div class="mb-3">
-                <label asp-for="Password" class="form-label"></label>
-                <input asp-for="Password" class="form-control" autocomplete="current-password" />
-                <span asp-validation-for="Password" class="text-danger"></span>
-            </div>
-
-            <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
-
-            <button type="submit" class="btn btn-primary">Log in</button>
-        </form>
-
-        <p class="mt-3 mb-0">
-            <a asp-action="ForgotPassword">Forgot your password?</a>
-        </p>
+        </div>
     </div>
 </div>
 

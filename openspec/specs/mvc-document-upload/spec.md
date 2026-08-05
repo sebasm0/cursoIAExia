@@ -8,7 +8,7 @@ Web form for uploading supported documents (.cs, .md, .pdf) into the vector stor
 
 | ID | Requirement | Strength |
 |----|-------------|----------|
-| UPLOAD-1 | Render a GET form with a file input and accepted format hints | MUST |
+| UPLOAD-1 | Upload form reachable via GET at `/Documents/Upload` with a file input and accepted-format hints (.cs, .md, .pdf); POST validation failures re-render the form with errors in place; Documents landing page links to this route | MUST |
 | UPLOAD-2 | POST handler calls `IngestionService.IngestAsync(fileName, contentType, stream)` | MUST |
 | UPLOAD-3 | Reject unsupported content types with a clear error listing supported types (.cs, .md, .pdf) | MUST |
 | UPLOAD-4 | Enforce a maximum file upload size (default 10 MB, configurable via `appsettings.json`) | SHOULD |
@@ -17,6 +17,14 @@ Web form for uploading supported documents (.cs, .md, .pdf) into the vector stor
 | UPLOAD-7 | Associate each ingested document with the current user's identity for multi-tenant isolation | SHOULD |
 | UPLOAD-8 | Support a background directory scanner that ingests new files from a configured watch path | SHOULD |
 | UPLOAD-9 | Upload flow requires authentication and `documents.upload` permission; anonymous → login redirect, missing permission → access-denied, gate before ingestion | MUST |
+| UPLOAD-10 | Upload form, documents landing, success, and error views follow the design system (UDS-1..UDS-4); UPLOAD-5/UPLOAD-6 data (name, size, timestamp; supported types in errors) preserved | MUST |
+
+### Scenario: GET renders the upload form
+
+- GIVEN an authenticated user with `documents.upload`
+- WHEN they request `/Documents/Upload` via GET
+- THEN the form renders with the file input and accepted-format hints (200)
+- AND the landing page's Upload action targets this route without 404
 
 ### Scenario: Happy path — supported file uploaded
 
@@ -29,7 +37,7 @@ Web form for uploading supported documents (.cs, .md, .pdf) into the vector stor
 
 - GIVEN the user selects a `.exe` or `.zip` file
 - WHEN they submit the upload form
-- THEN the system rejects the upload with an error message listing supported types (.cs, .md, .pdf)
+- THEN the form re-renders with an error message listing supported types (.cs, .md, .pdf)
 - AND no ingestion pipeline call is made
 
 ### Scenario: Empty file rejected
@@ -43,7 +51,7 @@ Web form for uploading supported documents (.cs, .md, .pdf) into the vector stor
 
 - GIVEN the user selects a 50 MB file
 - WHEN they submit the upload form
-- THEN the system rejects the upload with a validation error (or `413 Payload Too Large`)
+- THEN the system rejects the upload with a validation error
 - AND the error message includes the maximum allowed size
 
 ### Scenario: Parser failure on corrupt file
@@ -86,3 +94,22 @@ Web form for uploading supported documents (.cs, .md, .pdf) into the vector stor
 - WHEN the user submits the upload form
 - THEN the access-denied page is shown (403)
 - AND no file is persisted
+
+### Scenario: Upload form styled per design system
+
+- GIVEN the light or dark theme
+- WHEN an authorized user opens the upload form
+- THEN the form renders with token-based styling and the shared layout
+
+### Scenario: Success view shows document details
+
+- GIVEN a successful ingestion
+- WHEN the result view renders
+- THEN the document name, file size, and ingestion timestamp are displayed per the design system
+
+### Scenario: Error view lists supported types
+
+- GIVEN an unsupported file upload fails
+- WHEN the error view renders
+- THEN a token-styled error message lists the supported types (.cs, .md, .pdf)
+- AND no stack trace is shown

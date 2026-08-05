@@ -16,6 +16,9 @@ Web form for querying the RAG system. Users type a question and receive an AI-ge
 | ASK-6 | Scope search results to the current user's document space for multi-tenant isolation | SHOULD |
 | ASK-7 | LLM provider (`IChatClient`, `IEmbeddingGenerator`) configurable via `appsettings.json` — not hardcoded | MUST |
 | ASK-8 | Ask flow requires authentication and `rag.ask` permission; anonymous → login redirect, missing permission → access-denied, gate before pipeline | MUST |
+| ASK-9 | Ask form follows the design system (UDS-1..UDS-4): token-based styling, shared layout with theme toggle, real copy; ASK-5 validation re-render unchanged | MUST |
+| ASK-10 | Answer screen renders question echo, answer, citation sources, and "Ask another" per design system; ASK-1..ASK-8 behavior unchanged | MUST |
+| ASK-11 | Service-unavailable view renders per design system with friendly copy and retry guidance; no stack traces (ASK-4 unchanged) | MUST |
 
 ### Scenario: Happy path — valid question answered
 
@@ -78,3 +81,38 @@ Web form for querying the RAG system. Users type a question and receive an AI-ge
 - GIVEN an authenticated principal without `permission: rag.ask`
 - WHEN the user requests the Ask page
 - THEN the access-denied page is shown (403)
+
+### Scenario: Ask screen renders per design system
+
+- GIVEN the light or dark theme
+- WHEN an authorized user opens the Ask page
+- THEN the query form renders with token-based styling and the shared layout
+- AND no placeholder copy is displayed
+
+### Scenario: Validation error on the form
+
+- GIVEN the user submits a blank query
+- WHEN the POST handler validates
+- THEN the form re-renders in the design system with the validation error
+- AND no RAG pipeline call is made
+
+### Scenario: Answer with citations rendered
+
+- GIVEN a successful RAG response
+- WHEN the result view renders
+- THEN the question echo and answer text are displayed with token-based styling
+- AND each citation shows the source document name and a relevant excerpt
+
+### Scenario: Ask another action
+
+- GIVEN the answer view
+- WHEN the user selects "Ask another"
+- THEN the system returns to the Ask form
+- AND no conversation state persists (ASK-3 unchanged)
+
+### Scenario: Service-unavailable styled error
+
+- GIVEN the RAG pipeline is unreachable
+- WHEN the Ask POST fails
+- THEN a token-styled error view explains the service is temporarily unavailable
+- AND suggests retrying later
