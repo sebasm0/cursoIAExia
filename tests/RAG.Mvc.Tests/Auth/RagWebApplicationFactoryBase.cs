@@ -64,6 +64,7 @@ public abstract class RagWebApplicationFactoryBase : WebApplicationFactory<Progr
                 .ReturnsAsync([]);
             mockVectorStore
                 .Setup(v => v.StoreChunksBatchAsync(
+                    It.IsAny<Document>(),
                     It.IsAny<IList<(DocumentChunk Chunk, ReadOnlyMemory<float> Embedding)>>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);

@@ -37,7 +37,7 @@ public class IngestionService(
             batch.Add((chunk, embeddings[0].Vector));
         }
 
-        await vectorStore.StoreChunksBatchAsync(batch, ct);
+        await vectorStore.StoreChunksBatchAsync(document, batch, ct);
 
         return document;
     }

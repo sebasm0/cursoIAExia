@@ -6,6 +6,7 @@ public interface IVectorStore
 {
     Task StoreChunkAsync(DocumentChunk chunk, ReadOnlyMemory<float> embedding, CancellationToken ct = default);
     Task StoreChunksBatchAsync(
+        Document document,
         IEnumerable<(DocumentChunk Chunk, ReadOnlyMemory<float> Embedding)> chunks,
         CancellationToken ct = default);
     Task<IReadOnlyList<SearchResult>> HybridSearchAsync(

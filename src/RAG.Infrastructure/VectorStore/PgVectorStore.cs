@@ -114,27 +114,65 @@ public sealed class PgVectorStore : IVectorStore, IAsyncDisposable
     }
 
     public async Task StoreChunksBatchAsync(
+        Document document,
         IEnumerable<(DocumentChunk Chunk, ReadOnlyMemory<float> Embedding)> chunks,
         CancellationToken ct = default)
     {
         var ds = await GetDataSourceAsync();
         await using var conn = await ds.OpenConnectionAsync(ct);
 
-        await using var writer = await conn.BeginBinaryImportAsync("""
-            COPY chunks (id, document_id, content, chunk_index, embedding) FROM STDIN (FORMAT BINARY)
-            """, ct);
+        // Atomic: the document row and all its chunks commit (or roll back) together,
+        // so a mid-ingest failure never leaves an orphaned document with zero chunks.
+        await using var tx = await conn.BeginTransactionAsync(ct);
+
+        await using (var docCmd = conn.CreateCommand())
+        {
+            docCmd.CommandText = """
+                INSERT INTO documents (id, file_name, content_type, size, created_at)
+                VALUES (@id, @fileName, @contentType, @size, @createdAt)
+                """;
+            docCmd.Parameters.AddWithValue("id", document.Id);
+            docCmd.Parameters.AddWithValue("fileName", document.FileName);
+            docCmd.Parameters.AddWithValue("contentType", document.ContentType);
+            docCmd.Parameters.AddWithValue("size", document.Size);
+            docCmd.Parameters.AddWithValue("createdAt", document.CreatedAt);
+            await docCmd.ExecuteNonQueryAsync(ct);
+        }
+
+        // NOTE: we use INSERT ... @embedding::vector per row instead of binary COPY.
+        // Npgsql serializes float[] as a native PostgreSQL array in binary COPY, but pgvector
+        // expects its own binary layout (int16 dims + float values). Passing the textual
+        // representation "[v1,v2,...]" and casting to vector is the only reliable path here.
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO chunks (id, document_id, content, chunk_index, embedding)
+            VALUES (@id, @documentId, @content, @index, @embedding::vector)
+            """;
+
+        var pId = cmd.Parameters.Add("id", NpgsqlTypes.NpgsqlDbType.Uuid);
+        var pDocumentId = cmd.Parameters.Add("documentId", NpgsqlTypes.NpgsqlDbType.Uuid);
+        var pContent = cmd.Parameters.Add("content", NpgsqlTypes.NpgsqlDbType.Text);
+        var pIndex = cmd.Parameters.Add("index", NpgsqlTypes.NpgsqlDbType.Integer);
+        var pEmbedding = cmd.Parameters.Add("embedding", NpgsqlTypes.NpgsqlDbType.Text);
 
         foreach (var (chunk, embedding) in chunks)
         {
-            await writer.StartRowAsync(ct);
-            await writer.WriteAsync(chunk.Id, ct);
-            await writer.WriteAsync(chunk.DocumentId, ct);
-            await writer.WriteAsync(chunk.Content, ct);
-            await writer.WriteAsync(chunk.Index, ct);
-            await writer.WriteAsync(embedding.ToArray(), NpgsqlTypes.NpgsqlDbType.Real | NpgsqlTypes.NpgsqlDbType.Array, ct);
+            pId.Value = chunk.Id;
+            pDocumentId.Value = chunk.DocumentId;
+            pContent.Value = chunk.Content;
+            pIndex.Value = chunk.Index;
+            pEmbedding.Value = FormatVector(embedding);
+            await cmd.ExecuteNonQueryAsync(ct);
         }
 
-        await writer.CompleteAsync(ct);
+        await tx.CommitAsync(ct);
+    }
+
+    private static string FormatVector(ReadOnlyMemory<float> embedding)
+    {
+        var sb = new System.Text.StringBuilder("[").AppendJoin(",", embedding.ToArray().Select(f => f.ToString("R", System.Globalization.CultureInfo.InvariantCulture)));
+        sb.Append(']');
+        return sb.ToString();
     }
 
     public async Task<IReadOnlyList<SearchResult>> HybridSearchAsync(
