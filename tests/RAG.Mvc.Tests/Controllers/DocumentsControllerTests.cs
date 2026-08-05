@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,7 +33,8 @@ public class DocumentsControllerTests
     private static DocumentsController CreateController(
         IngestionService? ingestionService = null,
         IConfiguration? configuration = null,
-        ILogger<DocumentsController>? logger = null)
+        ILogger<DocumentsController>? logger = null,
+        IVectorStore? vectorStore = null)
     {
         var config = configuration ?? new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -43,6 +45,7 @@ public class DocumentsControllerTests
 
         var controller = new DocumentsController(
             ingestionService!,
+            vectorStore ?? new Mock<IVectorStore>().Object,
             config,
             logger ?? Mock.Of<ILogger<DocumentsController>>());
 
@@ -50,6 +53,7 @@ public class DocumentsControllerTests
         {
             HttpContext = new DefaultHttpContext()
         };
+        controller.TempData = new TempDataDictionary(new DefaultHttpContext(), Mock.Of<ITempDataProvider>());
 
         return controller;
     }
@@ -198,6 +202,107 @@ public class DocumentsControllerTests
         // Assert — the server must reject with HTTP 400 BEFORE any file validation
         // or ingestion call.
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // ── Index: loads the document list from the store ──
+
+    [Fact]
+    public async Task Index_GetsDocumentList_PassesListToView()
+    {
+        var documents = new List<Document>
+        {
+            new() { FileName = "a.cs", ContentType = "text/plain", Size = 100 },
+            new() { FileName = "b.md", ContentType = "text/markdown", Size = 2048 },
+        };
+
+        var mockVectorStore = new Mock<IVectorStore>();
+        mockVectorStore
+            .Setup(v => v.ListDocumentsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(documents);
+
+        var controller = CreateController(vectorStore: mockVectorStore.Object);
+
+        var result = await controller.Index(CancellationToken.None);
+
+        var viewResult = Assert.IsType<ViewResult>(result);
+        Assert.Same(documents, viewResult.Model);
+    }
+
+    // ── Index: store failure renders the view with the LoadFailed flag ──
+
+    [Fact]
+    public async Task Index_StoreThrows_SetsLoadFailedAndEmptyModel()
+    {
+        var mockVectorStore = new Mock<IVectorStore>();
+        mockVectorStore
+            .Setup(v => v.ListDocumentsAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("db unavailable"));
+
+        var controller = CreateController(vectorStore: mockVectorStore.Object);
+
+        var result = await controller.Index(CancellationToken.None);
+
+        var viewResult = Assert.IsType<ViewResult>(result);
+        Assert.Empty((IReadOnlyList<Document>)viewResult.Model!);
+        Assert.True(controller.ViewData["LoadFailed"] is true);
+        Assert.NotNull(controller.TempData["Error"]);
+    }
+
+    // ── Delete: removes the document and redirects back to the list ──
+
+    [Fact]
+    public async Task Delete_Post_CallsDeleteDocumentAsyncAndRedirectsToIndex()
+    {
+        var id = Guid.NewGuid();
+        var mockVectorStore = new Mock<IVectorStore>();
+        mockVectorStore
+            .Setup(v => v.DeleteDocumentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var controller = CreateController(vectorStore: mockVectorStore.Object);
+
+        var result = await controller.Delete(id, CancellationToken.None);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(DocumentsController.Index), redirect.ActionName);
+        mockVectorStore.Verify(v => v.DeleteDocumentAsync(id, It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal("Document deleted successfully.", controller.TempData["Message"]);
+    }
+
+    [Fact]
+    public async Task Delete_Post_StoreThrows_StillRedirectsToIndex()
+    {
+        var id = Guid.NewGuid();
+        var mockVectorStore = new Mock<IVectorStore>();
+        mockVectorStore
+            .Setup(v => v.DeleteDocumentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("db unavailable"));
+
+        var controller = CreateController(vectorStore: mockVectorStore.Object);
+
+        var result = await controller.Delete(id, CancellationToken.None);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(DocumentsController.Index), redirect.ActionName);
+        Assert.NotNull(controller.TempData["Error"]);
+    }
+
+    [Fact]
+    public async Task Delete_Post_NonexistentDocument_ReportsAlreadyDeleted()
+    {
+        var id = Guid.NewGuid();
+        var mockVectorStore = new Mock<IVectorStore>();
+        mockVectorStore
+            .Setup(v => v.DeleteDocumentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var controller = CreateController(vectorStore: mockVectorStore.Object);
+
+        var result = await controller.Delete(id, CancellationToken.None);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(DocumentsController.Index), redirect.ActionName);
+        Assert.Equal("The document does not exist or was already deleted.", controller.TempData["Message"]);
     }
 }
 

@@ -42,6 +42,22 @@ public class DocumentsViewRenderTests
         Assert.Contains("href=\"/Documents/Upload\"", body);
     }
 
+    // ── Documents listing: empty store renders the empty state ──
+
+    [Fact]
+    public async Task Documents_Index_EmptyStore_RendersEmptyState()
+    {
+        await using var factory = new PolicyTestWebApplicationFactory([Permissions.DocumentsUpload], []);
+        using var client = CreateClient(factory);
+
+        var response = await client.GetAsync("/Documents");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Uploaded Documents", body);
+        Assert.Contains("No documents uploaded yet", body);
+    }
+
     // ── UPLOAD-1 / UPLOAD-10: upload form renders per design system ──
 
     [Fact]
@@ -112,6 +128,52 @@ public class DocumentsViewRenderTests
         Assert.Contains("This document is now searchable through the Ask interface.", body);
     }
 
+    // ── FIX-1: the per-row Delete control is gated on documents.delete ──
+
+    [Fact]
+    public async Task Documents_Index_NoDeletePermission_HidesDeleteAction()
+    {
+        await using var factory = new SeededDocumentsWebApplicationFactory([Permissions.DocumentsUpload]);
+        using var client = CreateClient(factory);
+
+        var response = await client.GetAsync("/Documents");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("hello.cs", body);
+        Assert.DoesNotContain("Delete", body);
+    }
+
+    [Fact]
+    public async Task Documents_Index_WithDeletePermission_RendersDeleteAction()
+    {
+        await using var factory = new SeededDocumentsWebApplicationFactory([Permissions.DocumentsUpload, Permissions.DocumentsDelete]);
+        using var client = CreateClient(factory);
+
+        var response = await client.GetAsync("/Documents");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("hello.cs", body);
+        Assert.Contains("return confirm('Delete this document and all its indexed chunks? This cannot be undone.');", body);
+    }
+
+    // ── ListDocumentsAsync throws: distinct error state, no empty-state text ──
+
+    [Fact]
+    public async Task Documents_Index_StoreThrows_ShowsLoadErrorNotEmptyState()
+    {
+        await using var factory = new FailingListDocumentsWebApplicationFactory();
+        using var client = CreateClient(factory);
+
+        var response = await client.GetAsync("/Documents");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("The document list could not be loaded. Try again later.", body);
+        Assert.DoesNotContain("No documents uploaded yet", body);
+    }
+
     // ── UPLOAD-10: error view lists supported types, no stack trace ──
 
     [Fact]
@@ -157,6 +219,75 @@ public class FailingParseUploadWebApplicationFactory : RagWebApplicationFactoryB
                 .Returns(false);
 
             services.AddSingleton<IDocumentParser>(stubParser.Object);
+        });
+    }
+}
+
+/// <summary>
+/// Factory that seeds the vector store with one document so the list renders a
+/// row. Permissions are configurable so the Delete gating can be tested both ways.
+/// </summary>
+public sealed class SeededDocumentsWebApplicationFactory : RagWebApplicationFactoryBase
+{
+    private readonly string[] _permissions;
+
+    public SeededDocumentsWebApplicationFactory(string[] permissions)
+    {
+        _permissions = permissions;
+    }
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+
+        builder.ConfigureServices(services =>
+        {
+            services.AddPolicyTestAuthentication(_permissions, []);
+
+            RemoveService<IVectorStore>(services);
+
+            var mockVectorStore = new Mock<IVectorStore>();
+            mockVectorStore
+                .Setup(v => v.ListDocumentsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync([
+                    new RAG.Domain.Entities.Document
+                    {
+                        Id = Guid.NewGuid(),
+                        FileName = "hello.cs",
+                        ContentType = "text/plain",
+                        Size = 42,
+                        CreatedAt = DateTime.UtcNow,
+                    }
+                ]);
+            mockVectorStore
+                .Setup(v => v.DeleteDocumentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            services.AddSingleton<IVectorStore>(mockVectorStore.Object);
+        });
+    }
+}
+
+/// <summary>
+/// Factory whose vector store throws when listing documents, to exercise the
+/// distinct "list could not be loaded" state (vs the plain empty state).
+/// </summary>
+public sealed class FailingListDocumentsWebApplicationFactory : RagWebApplicationFactoryBase
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+
+        builder.ConfigureServices(services =>
+        {
+            services.AddPolicyTestAuthentication([Permissions.DocumentsUpload], []);
+
+            RemoveService<IVectorStore>(services);
+
+            var mockVectorStore = new Mock<IVectorStore>();
+            mockVectorStore
+                .Setup(v => v.ListDocumentsAsync(It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new InvalidOperationException("db unavailable"));
+            services.AddSingleton<IVectorStore>(mockVectorStore.Object);
         });
     }
 }

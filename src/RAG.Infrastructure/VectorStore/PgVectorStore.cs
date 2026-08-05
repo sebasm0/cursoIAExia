@@ -258,7 +258,37 @@ public sealed class PgVectorStore : IVectorStore, IAsyncDisposable
         }).ToList();
     }
 
-    public async Task DeleteDocumentAsync(Guid documentId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Document>> ListDocumentsAsync(CancellationToken ct = default)
+    {
+        var ds = await GetDataSourceAsync();
+        await using var conn = await ds.OpenConnectionAsync(ct);
+
+        var documents = new List<Document>();
+
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT id, file_name, content_type, size, created_at
+            FROM documents
+            ORDER BY created_at DESC
+            """;
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            documents.Add(new Document
+            {
+                Id = reader.GetGuid(0),
+                FileName = reader.GetString(1),
+                ContentType = reader.GetString(2),
+                Size = reader.GetInt64(3),
+                CreatedAt = reader.GetDateTime(4),
+            });
+        }
+
+        return documents;
+    }
+
+    public async Task<bool> DeleteDocumentAsync(Guid documentId, CancellationToken ct = default)
     {
         var ds = await GetDataSourceAsync();
         await using var conn = await ds.OpenConnectionAsync(ct);
@@ -266,9 +296,10 @@ public sealed class PgVectorStore : IVectorStore, IAsyncDisposable
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = "DELETE FROM documents WHERE id = @id";
         cmd.Parameters.AddWithValue("id", documentId);
-        await cmd.ExecuteNonQueryAsync(ct);
+        var affected = await cmd.ExecuteNonQueryAsync(ct);
 
         // chunks cascade-delete via FK
+        return affected > 0;
     }
 
     // ─────────────── Cleanup ───────────────

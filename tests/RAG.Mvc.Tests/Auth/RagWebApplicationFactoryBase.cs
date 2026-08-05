@@ -68,6 +68,12 @@ public abstract class RagWebApplicationFactoryBase : WebApplicationFactory<Progr
                     It.IsAny<IList<(DocumentChunk Chunk, ReadOnlyMemory<float> Embedding)>>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
+            mockVectorStore
+                .Setup(v => v.ListDocumentsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new List<Document>());
+            mockVectorStore
+                .Setup(v => v.DeleteDocumentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
             services.AddSingleton<IVectorStore>(mockVectorStore.Object);
 
             var mockReranker = new Mock<IReranker>();

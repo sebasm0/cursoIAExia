@@ -2,20 +2,25 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using rag.Models;
 using RAG.Application.Services;
+using RAG.Domain.Abstractions;
+using RAG.Domain.Entities;
 using RAG.Infrastructure.Identity;
 
 namespace rag.Controllers;
 
 /// <summary>
-/// Document upload flow (spec UPLOAD-9): requires an authenticated principal
-/// carrying the <c>permission: documents.upload</c> claim, enforced by the policy
-/// registered from the permission catalog (RBAC-4). The gate runs before any
-/// ingestion call.
+/// Document management: upload, list and delete documents (specs UPLOAD-9,
+/// LIST-1). The controller-wide gate requires an authenticated principal carrying
+/// the <c>permission: documents.upload</c> claim, enforced by the policy registered
+/// from the permission catalog (RBAC-4). The <see cref="Delete"/> action adds a
+/// further <c>permission: documents.delete</c> gate on top of that. All gates run
+/// before any storage call.
 /// </summary>
 [Authorize(Policy = Permissions.DocumentsUpload)]
 public class DocumentsController : Controller
 {
     private readonly IngestionService _ingestionService;
+    private readonly IVectorStore _vectorStore;
     private readonly ILogger<DocumentsController> _logger;
     private readonly long _maxFileSize;
 
@@ -28,17 +33,61 @@ public class DocumentsController : Controller
 
     public DocumentsController(
         IngestionService ingestionService,
+        IVectorStore vectorStore,
         IConfiguration configuration,
         ILogger<DocumentsController> logger)
     {
         _ingestionService = ingestionService;
+        _vectorStore = vectorStore;
         _logger = logger;
         _maxFileSize = configuration.GetValue<long>("DocumentUpload:MaxFileSize", 10 * 1024 * 1024);
     }
 
-    public IActionResult Index()
+    public async Task<IActionResult> Index(CancellationToken ct)
     {
-        return View();
+        IReadOnlyList<Document> documents;
+
+        ViewData["CanDeleteDocuments"] = User.HasClaim(Permissions.ClaimType, Permissions.DocumentsDelete);
+
+        try
+        {
+            documents = await _vectorStore.ListDocumentsAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error listing documents");
+            ViewData["LoadFailed"] = true;
+            TempData["Error"] = "The document list could not be loaded. The service may be temporarily unavailable.";
+            documents = [];
+        }
+
+        return View(documents);
+    }
+
+    /// <summary>
+    /// Deletes a document and its chunks (cascade via FK). Gated by the
+    /// <c>permission: documents.delete</c> claim, on top of the controller-wide
+    /// <c>documents.upload</c> policy.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = Permissions.DocumentsDelete)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var deleted = await _vectorStore.DeleteDocumentAsync(id, ct);
+            TempData["Message"] = deleted
+                ? "Document deleted successfully."
+                : "The document does not exist or was already deleted.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting document: {DocumentId}", id);
+            TempData["Error"] = "An error occurred while deleting the document. Please try again.";
+        }
+
+        return RedirectToAction(nameof(Index));
     }
 
     /// <summary>

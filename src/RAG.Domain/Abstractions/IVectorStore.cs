@@ -14,5 +14,6 @@ public interface IVectorStore
         string queryText,
         int topK = 10,
         CancellationToken ct = default);
-    Task DeleteDocumentAsync(Guid documentId, CancellationToken ct = default);
+    Task<IReadOnlyList<Document>> ListDocumentsAsync(CancellationToken ct = default);
+    Task<bool> DeleteDocumentAsync(Guid documentId, CancellationToken ct = default);
 }

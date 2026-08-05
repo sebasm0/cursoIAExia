@@ -1,3 +1,4 @@
+@model IReadOnlyList<RAG.Domain.Entities.Document>
 @{
     ViewData["Title"] = "Documents";
 }
@@ -5,6 +6,15 @@
 <div class="py-4">
     <h1 class="display-6 mb-2">Documents</h1>
     <p class="lead mb-4">Manage documents in the RAG system. Upload new files to make them searchable through the Ask interface.</p>
+
+    @if (TempData["Message"] is string message)
+    {
+        <div class="alert alert-success" role="alert">@message</div>
+    }
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
 
     <div class="row g-4">
         <div class="col-md-6 col-lg-5">
@@ -25,5 +35,72 @@
                 </div>
             </div>
         </div>
+
+        <div class="col-12">
+            <div class="card action-card">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Uploaded Documents</h2>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model is { Count: > 0 })
+                    {
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">File Name</th>
+                                    <th scope="col">Type</th>
+                                    <th scope="col" class="text-end">Size</th>
+                                    <th scope="col">Uploaded At</th>
+                                    @if (ViewData["CanDeleteDocuments"] is true)
+                                    {
+                                        <th scope="col" class="text-end">Actions</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var doc in Model)
+                                {
+                                    <tr>
+                                        <td class="fw-semibold">@doc.FileName</td>
+                                        <td><span class="badge text-bg-light border">@doc.ContentType</span></td>
+                                        <td class="text-end text-nowrap">@FormatSize(doc.Size)</td>
+                                        <td class="text-nowrap">@doc.CreatedAt.ToLocalTime().ToString("g")</td>
+                                        @if (ViewData["CanDeleteDocuments"] is true)
+                                        {
+                                            <td class="text-end">
+                                                <form asp-action="Delete" asp-route-id="@doc.Id" method="post"
+                                                      onsubmit="return confirm('Delete this document and all its indexed chunks? This cannot be undone.');">
+                                                    @Html.AntiForgeryToken()
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                        Delete
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else if (ViewData["LoadFailed"] is not true)
+                    {
+                        <p class="text-muted m-0 p-4">No documents uploaded yet</p>
+                    }
+                    else
+                    {
+                        <p class="text-muted m-0 p-4">The document list could not be loaded. Try again later.</p>
+                    }
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+@functions {
+    static string FormatSize(long bytes) => bytes switch
+    {
+        >= 1024 * 1024 => $"{bytes / (1024.0 * 1024.0):0.##} MB",
+        >= 1024 => $"{bytes / 1024.0:0.##} KB",
+        _ => $"{bytes} B",
+    };
+}
