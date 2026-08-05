@@ -70,13 +70,9 @@ public class DocumentsViewRenderTests
         await using var factory = new PolicyTestWebApplicationFactory([Permissions.DocumentsUpload], []);
         using var client = CreateClient(factory);
 
-        using var fileStream = new MemoryStream([0x01, 0x02, 0x03]);
-        using var formContent = new MultipartFormDataContent
-        {
-            { new StreamContent(fileStream), "file", "malware.exe" }
-        };
-
-        var response = await client.PostAsync("/Documents/Upload", formContent);
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Documents/Upload");
+        var response = await client.SendAsync(AccountTestHelpers.CreateMultipartPost(
+            "/Documents/Upload", token, "malware.exe", [0x01, 0x02, 0x03]));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -85,6 +81,11 @@ public class DocumentsViewRenderTests
         Assert.Contains("name=\"file\"", body);
         Assert.Contains("Unsupported file type", body);
         Assert.Contains(".cs, .md, .pdf", body);
+        // UPLOAD-12: the server-side error renders bound to the file field
+        // (field-validation-error span with data-valmsg-for="file"), so it is
+        // visible with JavaScript disabled — not only via the client-side script.
+        Assert.Contains("field-validation-error", body);
+        Assert.Contains("data-valmsg-for=\"file\"", body);
     }
 
     // ── UPLOAD-10: success view shows document details ──
@@ -95,13 +96,10 @@ public class DocumentsViewRenderTests
         await using var factory = new CustomUploadWebApplicationFactory();
         using var client = CreateClient(factory);
 
-        using var fileStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("public class Hello { }"));
-        using var formContent = new MultipartFormDataContent
-        {
-            { new StreamContent(fileStream), "file", "Hello.cs" }
-        };
-
-        var response = await client.PostAsync("/Documents/Upload", formContent);
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Documents/Upload");
+        var response = await client.SendAsync(AccountTestHelpers.CreateMultipartPost(
+            "/Documents/Upload", token, "Hello.cs",
+            System.Text.Encoding.UTF8.GetBytes("public class Hello { }")));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -122,13 +120,10 @@ public class DocumentsViewRenderTests
         await using var factory = new FailingParseUploadWebApplicationFactory();
         using var client = CreateClient(factory);
 
-        using var fileStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("broken content"));
-        using var formContent = new MultipartFormDataContent
-        {
-            { new StreamContent(fileStream), "file", "Broken.cs" }
-        };
-
-        var response = await client.PostAsync("/Documents/Upload", formContent);
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Documents/Upload");
+        var response = await client.SendAsync(AccountTestHelpers.CreateMultipartPost(
+            "/Documents/Upload", token, "Broken.cs",
+            System.Text.Encoding.UTF8.GetBytes("broken content")));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();

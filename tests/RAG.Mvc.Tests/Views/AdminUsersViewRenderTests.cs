@@ -85,6 +85,31 @@ public class AdminUsersViewRenderTests
         Assert.Contains("<table", body);
     }
 
+    // ── ADMIN-10: delete form stays submit-able without JavaScript ──
+
+    [Fact]
+    public async Task UsersIndex_AdminUsers_DeleteFormHasNoScriptSubmitFallback()
+    {
+        await using var factory = await CreateAdminFactoryAsync();
+        await factory.EnsureRoleAsync("User", Permissions.RagAsk);
+        await factory.CreateUserWithRolesAsync("alice", Password, "alice@example.com", "User");
+        using var client = CreateClient(factory);
+        await SignInAsync(factory, client, "admin");
+        var aliceId = (await factory.FindByUserNameAsync("alice"))!.Id;
+
+        var body = await (await client.GetAsync("/Admin/Users")).Content.ReadAsStringAsync();
+
+        // ADMIN-10: with JavaScript disabled the delete form still submits — a
+        // <noscript> fallback submit button must render INSIDE the delete form.
+        var deleteForm = Regex.Match(
+            body, $@"<form id=""delete-user-{aliceId}"".*?</form>", RegexOptions.Singleline);
+        Assert.True(deleteForm.Success, "Delete form for alice not rendered.");
+        Assert.Contains("<noscript>", deleteForm.Value);
+        Assert.Contains("<button type=\"submit\"", deleteForm.Value);
+        // The JS modal path stays the interactive flow for scripting-enabled users.
+        Assert.Contains($"data-bs-toggle=\"modal\" data-bs-target=\"#confirmModal-{aliceId}\"", body);
+    }
+
     // ── ADMIN-8: Create form per design system ──
 
     [Fact]

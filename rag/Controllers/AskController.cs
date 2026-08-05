@@ -29,6 +29,7 @@ public class AskController : Controller
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Ask(AskViewModel model, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(model.Query))

@@ -18,6 +18,8 @@ Web form for uploading supported documents (.cs, .md, .pdf) into the vector stor
 | UPLOAD-8 | Support a background directory scanner that ingests new files from a configured watch path | SHOULD |
 | UPLOAD-9 | Upload flow requires authentication and `documents.upload` permission; anonymous → login redirect, missing permission → access-denied, gate before ingestion | MUST |
 | UPLOAD-10 | Upload form, documents landing, success, and error views follow the design system (UDS-1..UDS-4); UPLOAD-5/UPLOAD-6 data (name, size, timestamp; supported types in errors) preserved | MUST |
+| UPLOAD-11 | POST `Upload` requires a valid antiforgery token in the multipart body; a POST without a valid `__RequestVerificationToken` is rejected with HTTP 400 before any file validation or ingestion (per-action posture, no global filter; UPLOAD-1..UPLOAD-10 unchanged) | MUST |
+| UPLOAD-12 | Server-side file validation errors (empty file, unsupported type, oversize) render via a server-rendered message bound to the `file` field so they are visible with JavaScript disabled; client-side script may remain but must not be the only error surface | MUST |
 
 ### Scenario: GET renders the upload form
 
@@ -113,3 +115,36 @@ Web form for uploading supported documents (.cs, .md, .pdf) into the vector stor
 - WHEN the error view renders
 - THEN a token-styled error message lists the supported types (.cs, .md, .pdf)
 - AND no stack trace is shown
+
+### Scenario: Multipart POST with token succeeds
+
+- GIVEN an authenticated user with `permission: documents.upload` and a `__RequestVerificationToken` present in the multipart body
+- WHEN they POST a supported file to `/Documents/Upload`
+- THEN the file is validated and passed to `IngestionService.IngestAsync` (UPLOAD-2 unchanged)
+
+### Scenario: Multipart POST without token rejected
+
+- GIVEN an authenticated user with `permission: documents.upload` submitting multipart content with no token field
+- WHEN the request reaches the `Upload` action
+- THEN the server returns HTTP 400
+- AND no file validation, parsing, or ingestion call is made
+
+### Scenario: Empty-file error visible without JS
+
+- GIVEN an authenticated user submits a 0-byte file with JavaScript disabled
+- WHEN the POST handler rejects it and re-renders the form
+- THEN the rendered view shows the empty-file error message, server-rendered and bound to the `file` field
+- AND no ingestion call is made (UPLOAD-1 re-render unchanged)
+
+### Scenario: Unsupported-type error visible without JS
+
+- GIVEN an authenticated user submits a `.exe` file with JavaScript disabled
+- WHEN the POST handler rejects it and re-renders the form
+- THEN the rendered view shows the unsupported-type error listing supported types (.cs, .md, .pdf) (UPLOAD-3 content unchanged), server-rendered
+
+### Scenario: Oversize error visible without JS
+
+- GIVEN an authenticated user submits a file above the configured limit with JavaScript disabled
+- WHEN the POST handler rejects it and re-renders the form
+- THEN the rendered view shows the maximum-size error message (UPLOAD-4 content unchanged), server-rendered
+- AND no ingestion call is made

@@ -19,6 +19,8 @@ Web form for querying the RAG system. Users type a question and receive an AI-ge
 | ASK-9 | Ask form follows the design system (UDS-1..UDS-4): token-based styling, shared layout with theme toggle, real copy; ASK-5 validation re-render unchanged | MUST |
 | ASK-10 | Answer screen renders question echo, answer, citation sources, and "Ask another" per design system; ASK-1..ASK-8 behavior unchanged | MUST |
 | ASK-11 | Service-unavailable view renders per design system with friendly copy and retry guidance; no stack traces (ASK-4 unchanged) | MUST |
+| ASK-12 | POST `Ask` requires a valid antiforgery token; a POST without a valid `__RequestVerificationToken` is rejected with HTTP 400 before any RAG pipeline call (per-action posture, no global filter; ASK-1..ASK-11 unchanged) | MUST |
+| ASK-13 | Result view renders a non-blank fallback when both `ErrorMessage` and `Answer` are empty; populated error/answer states render unchanged (ASK-3/ASK-4 unchanged) | MUST |
 
 ### Scenario: Happy path — valid question answered
 
@@ -116,3 +118,29 @@ Web form for querying the RAG system. Users type a question and receive an AI-ge
 - WHEN the Ask POST fails
 - THEN a token-styled error view explains the service is temporarily unavailable
 - AND suggests retrying later
+
+### Scenario: POST with token succeeds
+
+- GIVEN an authenticated user with `permission: rag.ask` and a form-rendered `__RequestVerificationToken`
+- WHEN they POST a valid question to `/Ask` with the token present
+- THEN the request is processed and the result view renders (ASK-2/ASK-3 unchanged)
+
+### Scenario: POST without token rejected
+
+- GIVEN an authenticated user with `permission: rag.ask` issuing a POST without a token
+- WHEN the request reaches the `Ask` action
+- THEN the server returns HTTP 400
+- AND no RAG pipeline call is made
+
+### Scenario: Empty response renders fallback
+
+- GIVEN `ErrorMessage` and `Answer` are both empty after the Ask POST
+- WHEN the result view renders
+- THEN a non-blank fallback message is displayed in place of an empty page
+- AND the retry / back-navigation actions remain available
+
+### Scenario: Populated states unchanged
+
+- GIVEN `ErrorMessage` or `Answer` is populated
+- WHEN the result view renders
+- THEN the existing error or answer branch renders exactly as before (ASK-3/ASK-4 unchanged)

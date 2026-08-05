@@ -23,7 +23,7 @@
                                    accept=".cs,.md,.pdf"
                                    required />
                             <div class="form-text">Accepted formats: .cs (C#), .md (Markdown), .pdf (PDF). Maximum size: 10 MB.</div>
-                            <span class="text-danger" id="file-validation"></span>
+                            @Html.ValidationMessage("file", new { @class = "text-danger", id = "file-validation" })
                         </div>
 
                         <button type="submit" class="btn btn-primary">

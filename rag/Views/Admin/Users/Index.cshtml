@@ -41,6 +41,7 @@
                             {
                                 <form id="delete-user-@user.Id" class="d-inline" asp-action="UsersDelete" asp-route-id="@user.Id" method="post">
                                     <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal-@user.Id">Delete</button>
+                                    <noscript><button type="submit" class="btn btn-outline-danger btn-sm">Delete</button></noscript>
                                 </form>
                                 @await Html.PartialAsync("_ConfirmModal", new ConfirmModalViewModel
                                 {
