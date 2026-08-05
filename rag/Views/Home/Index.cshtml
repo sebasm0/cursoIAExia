@@ -1,8 +1,71 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Home";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<section class="hero">
+    <div class="row">
+        <div class="col-lg-8">
+            <h1 class="display-5 fw-semibold">Semantic search over your documents</h1>
+            <p class="lead mt-3">
+                Ask questions in plain language and get answers grounded in your document library.
+            </p>
+            <a asp-controller="Ask" asp-action="Index" class="btn btn-primary btn-lg mt-2">Ask a Question</a>
+        </div>
+    </div>
+</section>
+
+<section class="pb-5">
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card action-card">
+                <div class="card-body">
+                    <h2 class="card-title h5">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="text-primary" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                            <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.504-1.246 1.16-1.246 2.005v.248c0 .13.102.23.23.23h.764A.23.23 0 0 0 8 9.32V9.11c0-.564.28-.8.964-1.307.701-.525 1.3-1.16 1.3-2.246C10.264 4.065 9.135 3.5 8.09 3.5 6.79 3.5 5.62 4.35 5.255 5.786M8 12a.93.93 0 0 0 .928-.927.928.928 0 0 0-1.856 0A.93.93 0 0 0 8 12"/>
+                        </svg>
+                        Ask a Question
+                    </h2>
+                    <p class="card-text text-secondary">
+                        Query your documents with natural language and get cited answers.
+                    </p>
+                    <a asp-controller="Ask" asp-action="Index" class="btn btn-outline-primary">Start asking</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card action-card">
+                <div class="card-body">
+                    <h2 class="card-title h5">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="text-primary" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
+                            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
+                        </svg>
+                        Upload a Document
+                    </h2>
+                    <p class="card-text text-secondary">
+                        Add .cs, .md, or .pdf files to your knowledge base.
+                    </p>
+                    <a asp-controller="Documents" asp-action="Index" class="btn btn-outline-primary">Go to upload</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card action-card">
+                <div class="card-body">
+                    <h2 class="card-title h5">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="text-primary" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="M2 1a1 1 0 0 1 1-1h8.586A1 1 0 0 1 13 .586l2.414 2.414A1 1 0 0 1 16 4.414V15a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/>
+                            <path d="M2 1v14a1 1 0 0 0 1 1h11V4.5h-3.5A1.5 1.5 0 0 1 9 3V2H3a1 1 0 0 0-1 1m2 5h7v1H4zm0 3h7v1H4zm0 3h4v1H4z"/>
+                        </svg>
+                        Documents
+                    </h2>
+                    <p class="card-text text-secondary">
+                        Browse and manage the files indexed for search.
+                    </p>
+                    <a asp-controller="Documents" asp-action="Index" class="btn btn-outline-primary">View documents</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
