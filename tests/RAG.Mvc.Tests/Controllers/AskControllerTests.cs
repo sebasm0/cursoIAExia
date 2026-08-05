@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -61,15 +62,12 @@ public class AskControllerTests
         await using var factory = new CustomRagWebApplicationFactory();
         using var client = factory.CreateClient();
 
-        var formData = new Dictionary<string, string>
-        {
-            { "Query", "What is the capital of France?" }
-        };
-
-        using var content = new FormUrlEncodedContent(formData);
+        // Harness the token the form tag helper embeds, then submit with it (ASK-12).
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
 
         // Act
-        var response = await client.PostAsync("/Ask/Ask", content);
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/Ask", token, ("Query", "What is the capital of France?")));
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -77,6 +75,28 @@ public class AskControllerTests
 
         Assert.Contains("Answer", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Paris", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // ── ASK-12: POST without antiforgery token is rejected ──
+
+    [Fact]
+    public async Task Ask_Post_WithoutToken_ReturnsBadRequest()
+    {
+        await using var factory = new CustomRagWebApplicationFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var formData = new Dictionary<string, string>
+        {
+            { "Query", "What is the capital of France?" }
+        };
+
+        using var content = new FormUrlEncodedContent(formData);
+
+        // Act — ASK-12: no __RequestVerificationToken in the body.
+        var response = await client.PostAsync("/Ask/Ask", content);
+
+        // Assert — the server must reject with HTTP 400 BEFORE any pipeline call.
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 }
 

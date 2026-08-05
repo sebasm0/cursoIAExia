@@ -53,6 +53,7 @@ public class DocumentsController : Controller
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     [RequestSizeLimit(50 * 1024 * 1024)]
     public async Task<IActionResult> Upload(IFormFile file, CancellationToken ct)
     {

@@ -50,8 +50,9 @@ public class AskViewRenderTests
         await using var factory = new PolicyTestWebApplicationFactory([Permissions.RagAsk], []);
         using var client = CreateClient(factory);
 
-        var response = await client.PostAsync("/Ask/Ask", new FormUrlEncodedContent(
-            new Dictionary<string, string> { { "Query", "   " } }));
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/Ask", token, ("Query", "   ")));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -75,8 +76,9 @@ public class AskViewRenderTests
         await using var factory = new CustomRagWebApplicationFactory();
         using var client = CreateClient(factory);
 
-        var response = await client.PostAsync("/Ask/Ask", new FormUrlEncodedContent(
-            new Dictionary<string, string> { { "Query", "What is the capital of France?" } }));
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/Ask", token, ("Query", "What is the capital of France?")));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -98,8 +100,9 @@ public class AskViewRenderTests
         await using var factory = new FailingRagWebApplicationFactory();
         using var client = CreateClient(factory);
 
-        var response = await client.PostAsync("/Ask/Ask", new FormUrlEncodedContent(
-            new Dictionary<string, string> { { "Query", "Is the service up?" } }));
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/Ask", token, ("Query", "Is the service up?")));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();

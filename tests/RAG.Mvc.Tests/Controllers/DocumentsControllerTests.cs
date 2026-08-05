@@ -163,15 +163,12 @@ public class DocumentsControllerTests
         await using var factory = new CustomUploadWebApplicationFactory();
         using var client = factory.CreateClient();
 
-        var fileContent = "public class Hello { }";
-        using var fileStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(fileContent));
-        using var formContent = new MultipartFormDataContent
-        {
-            { new StreamContent(fileStream), "file", "Hello.cs" }
-        };
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Documents/Upload");
 
-        // Act
-        var response = await client.PostAsync("/Documents/Upload", formContent);
+        // Act — UPLOAD-11: multipart POST with the harvested token.
+        var response = await client.SendAsync(AccountTestHelpers.CreateMultipartPost(
+            "/Documents/Upload", token, "Hello.cs",
+            System.Text.Encoding.UTF8.GetBytes("public class Hello { }")));
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -180,6 +177,27 @@ public class DocumentsControllerTests
         Assert.Contains("success", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Hello.cs", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("text/plain", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // ── UPLOAD-11: multipart POST without antiforgery token is rejected ──
+
+    [Fact]
+    public async Task Upload_Post_WithoutToken_ReturnsBadRequest()
+    {
+        await using var factory = new CustomUploadWebApplicationFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        using var formContent = new MultipartFormDataContent
+        {
+            { new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes("public class Hello { }")), "file", "Hello.cs" }
+        };
+
+        // Act — UPLOAD-11: no __RequestVerificationToken in the multipart body.
+        var response = await client.PostAsync("/Documents/Upload", formContent);
+
+        // Assert — the server must reject with HTTP 400 BEFORE any file validation
+        // or ingestion call.
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 }
 
