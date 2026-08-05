@@ -130,6 +130,24 @@ public static class AccountTestHelpers
     }
 
     /// <summary>
+    /// Builds a multipart/form-data POST that mirrors <see cref="CreatePost"/> but
+    /// carries a real file part bound to the field <c>file</c>, so file-bound
+    /// actions can be exercised with the antiforgery token present in the multipart
+    /// body. Used by the Document Upload CSRF and validation-visibility tests.
+    /// </summary>
+    public static HttpRequestMessage CreateMultipartPost(
+        string url, string antiforgeryToken, string fileName, byte[] content)
+    {
+        var form = new MultipartFormDataContent
+        {
+            { new ByteArrayContent(content), "file", fileName },
+            { new StringContent(antiforgeryToken), "__RequestVerificationToken" }
+        };
+
+        return new HttpRequestMessage(HttpMethod.Post, url) { Content = form };
+    }
+
+    /// <summary>
     /// The Identity application cookie name: scheme "Identity.Application" maps
     /// to the ".AspNetCore.Identity.Application" cookie (default cookie prefix).
     /// </summary>
