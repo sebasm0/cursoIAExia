@@ -35,9 +35,18 @@
                     <a asp-action="UsersEdit" asp-route-id="@user.Id" class="btn btn-outline-secondary btn-sm">Edit</a>
                     @if (user.Id.ToString() != currentUserId)
                     {
-                        <form class="d-inline" asp-action="UsersDelete" asp-route-id="@user.Id" method="post">
-                            <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                        <form id="delete-user-@user.Id" class="d-inline" asp-action="UsersDelete" asp-route-id="@user.Id" method="post">
+                            <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal-@user.Id">Delete</button>
                         </form>
+                        @await Html.PartialAsync("_ConfirmModal", new ConfirmModalViewModel
+                        {
+                            ModalId = "confirmModal-" + user.Id,
+                            FormId = "delete-user-" + user.Id,
+                            Title = "Delete user",
+                            Message = $"Delete {user.UserName}? This action cannot be undone.",
+                            ConfirmLabel = "Delete",
+                            ConfirmClass = "btn-danger",
+                        })
                     }
                 </td>
             </tr>

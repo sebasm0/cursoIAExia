@@ -35,13 +35,13 @@ Chain strategy: feature-branch-chain
 
 ## Slice B — Core Flows (PR 2)
 
-- [ ] B1 Generate Ask, Documents, confirm-modal screens. [UDS-7]
-- [ ] B2 RED `tests/RAG.Mvc.Tests/Controllers/DocumentsControllerTests.cs`: add GET Upload→200 renders form; update 2 POST tests to assert Upload-view re-render. [UPLOAD-1]
-- [ ] B3 GREEN `rag/Controllers/DocumentsController.cs`: add `[HttpGet] Upload() => View()`; three POST `return View("Index")` → `return View()`. [UPLOAD-1]
-- [ ] B4 Redesign `rag/Views/Ask/{Index,Result}.cshtml`: validation re-render, echo+answer+citations, "Ask another", service-unavailable state. [ASK-9/10/11] ~200ln
-- [ ] B5 Redesign `rag/Views/Documents/{Index,Upload,Result}.cshtml`: format hints, landing link→reachable route, success name/size/timestamp, errors list types. [UPLOAD-10]
-- [ ] B6 Create `rag/Views/Shared/_ConfirmModal.cshtml`; wire into destructive actions. [UDS-7]
-- [ ] B7 Tests: Ask/Documents views 200 + markers; POST validation re-renders form; modal blocks until choice. [ASK-9, UPLOAD-1/10]
+- [x] B1 Generate Ask, Documents, confirm-modal screens. [UDS-7]
+- [x] B2 RED `tests/RAG.Mvc.Tests/Controllers/DocumentsControllerTests.cs`: add GET Upload→200 renders form; update 2 POST tests to assert Upload-view re-render. [UPLOAD-1]
+- [x] B3 GREEN `rag/Controllers/DocumentsController.cs`: add `[HttpGet] Upload() => View()`; three POST `return View("Index")` → `return View()`. [UPLOAD-1]
+- [x] B4 Redesign `rag/Views/Ask/{Index,Result}.cshtml`: validation re-render, echo+answer+citations, "Ask another", service-unavailable state. [ASK-9/10/11] ~200ln
+- [x] B5 Redesign `rag/Views/Documents/{Index,Upload,Result}.cshtml`: format hints, landing link→reachable route, success name/size/timestamp, errors list types. [UPLOAD-10]
+- [x] B6 Create `rag/Views/Shared/_ConfirmModal.cshtml`; wire into destructive actions. [UDS-7]
+- [x] B7 Tests: Ask/Documents views 200 + markers; POST validation re-renders form; modal blocks until choice. [ASK-9, UPLOAD-1/10]
 
 ## Slice C — Admin (PR 3)
 
