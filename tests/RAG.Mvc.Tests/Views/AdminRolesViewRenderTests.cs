@@ -91,6 +91,30 @@ public class AdminRolesViewRenderTests
         Assert.Contains("<table", body);
     }
 
+    // ── ADMIN-10: role delete form stays submit-able without JavaScript ──
+
+    [Fact]
+    public async Task RolesIndex_AdminRoles_DeleteFormHasNoScriptSubmitFallback()
+    {
+        await using var factory = await CreateAdminFactoryAsync();
+        await factory.EnsureRoleAsync("temp-role", Permissions.RagAsk);
+        using var client = CreateClient(factory);
+        await SignInAsync(factory, client, "admin");
+        var roleId = await factory.GetRoleIdAsync("temp-role");
+
+        var body = await (await client.GetAsync("/Admin/Roles")).Content.ReadAsStringAsync();
+
+        // ADMIN-10: a deletable role (non built-in, no members) renders a
+        // <noscript> submit fallback inside its delete form for JS-off admins.
+        var deleteForm = Regex.Match(
+            body, $@"<form id=""delete-role-{roleId}"".*?</form>", RegexOptions.Singleline);
+        Assert.True(deleteForm.Success, "Delete form for deletable role not rendered.");
+        Assert.Contains("<noscript>", deleteForm.Value);
+        Assert.Contains("<button type=\"submit\"", deleteForm.Value);
+        // The JS modal path stays the interactive flow for scripting-enabled users.
+        Assert.Contains($"data-bs-toggle=\"modal\" data-bs-target=\"#confirmModal-{roleId}\"", body);
+    }
+
     // ── ADMIN-5: Role create form per design system ──
 
     [Fact]

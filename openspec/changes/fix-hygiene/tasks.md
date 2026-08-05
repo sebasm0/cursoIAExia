@@ -49,8 +49,8 @@ Ordering: option (a) — helper first, then per-controller RED→GREEN with exis
 
 ## Phase 5: No-JS delete fallback (ADMIN-10)
 
-- [ ] 5.1 RED: `AdminUsersViewRenderTests.cs` + `AdminRolesViewRenderTests.cs`: assert `<noscript>` with `type="submit"` button inside each delete form. Fails. Filter: `~AdminUsersViewRenderTests|AdminRolesViewRenderTests`
-- [ ] 5.2 GREEN: `<noscript><button type="submit" class="btn btn-outline-danger btn-sm">Delete</button></noscript>` inside both delete forms (`rag/Views/Admin/Users/Index.cshtml:42`, `rag/Views/Admin/Roles/Index.cshtml:41`). Modal path untouched. Filter: `~AdminUsersViewRenderTests|AdminRolesViewRenderTests|ConfirmModalRenderTests` — existing `AdminUserFlowTests` direct POSTs already prove the no-JS destructive path.
+- [x] 5.1 RED: `AdminUsersViewRenderTests.cs` + `AdminRolesViewRenderTests.cs`: assert `<noscript>` with `type="submit"` button inside each delete form. Fails. Filter: `~AdminUsersViewRenderTests|AdminRolesViewRenderTests`
+- [x] 5.2 GREEN: `<noscript><button type="submit" class="btn btn-outline-danger btn-sm">Delete</button></noscript>` inside both delete forms (`rag/Views/Admin/Users/Index.cshtml:42`, `rag/Views/Admin/Roles/Index.cshtml:41`). Modal path untouched. Filter: `~AdminUsersViewRenderTests|AdminRolesViewRenderTests|ConfirmModalRenderTests` — existing `AdminUserFlowTests` direct POSTs already prove the no-JS destructive path.
 
 ## Phase 6: Scoped brand colors (UDS-8)
 

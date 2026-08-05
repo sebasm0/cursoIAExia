@@ -40,6 +40,7 @@
                             {
                                 <form id="delete-role-@role.Id" class="d-inline" asp-action="RolesDelete" asp-route-id="@role.Id" method="post">
                                     <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal-@role.Id">Delete</button>
+                                    <noscript><button type="submit" class="btn btn-outline-danger btn-sm">Delete</button></noscript>
                                 </form>
                                 @await Html.PartialAsync("_ConfirmModal", new ConfirmModalViewModel
                                 {
