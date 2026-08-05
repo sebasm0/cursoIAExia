@@ -54,8 +54,8 @@ Ordering: option (a) — helper first, then per-controller RED→GREEN with exis
 
 ## Phase 6: Scoped brand colors (UDS-8)
 
-- [ ] 6.1 RED: `LayoutScopedCssTests.cs` (`tests/RAG.Mvc.Tests/Views/`): locate `rag/Views/Shared/_Layout.cshtml.css` walking up from `AppContext.BaseDirectory`; assert no `#0077cc`/`#1b6ec2`/`#1861ac`. Fails. Filter: `~LayoutScopedCss`
-- [ ] 6.2 GREEN: `_Layout.cshtml.css:10-24` → `a { color: var(--bs-link-color) }`; `.btn-primary`/`.nav-pills` → `var(--bs-btn-bg)`+`var(--bs-btn-border-color)` (or `var(--bs-primary)`); keep `color: #fff`. Filter: `~LayoutScopedCss`
+- [x] 6.1 RED: `LayoutScopedCssTests.cs` (`tests/RAG.Mvc.Tests/Views/`): locate `rag/Views/Shared/_Layout.cshtml.css` walking up from `AppContext.BaseDirectory`; assert no `#0077cc`/`#1b6ec2`/`#1861ac`. Fails. Filter: `~LayoutScopedCss`
+- [x] 6.2 GREEN: `_Layout.cshtml.css:10-24` → `a { color: var(--bs-link-color) }`; `.btn-primary`/`.nav-pills` → `var(--bs-btn-bg)`+`var(--bs-btn-border-color)` (or `var(--bs-primary)`); keep `color: #fff`. Filter: `~LayoutScopedCss`
 
 ## Phase 7: Full verification
 
