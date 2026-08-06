@@ -91,6 +91,34 @@ public class DocumentsController : Controller
     }
 
     /// <summary>
+    /// Serves the original uploaded file (e.g. the PDF) inline so the browser
+    /// can render it. Gated by the <c>permission: documents.view</c> claim,
+    /// which is seeded to the User and Admin roles (RBAC-4).
+    /// </summary>
+    [HttpGet]
+    [Authorize(Policy = Permissions.DocumentsView)]
+    public async Task<IActionResult> View(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var (document, content) = await _vectorStore.GetDocumentWithContentAsync(id, ct);
+            if (document is null || content is null || content.Length == 0)
+                return NotFound();
+
+            // enableRangeProcessing lets the browser stream/seek the file and
+            // return the content inline (Content-Disposition: inline), so PDFs
+            // render in a browser tab instead of downloading.
+            return File(content, document.ContentType, enableRangeProcessing: true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error viewing document: {DocumentId}", id);
+            TempData["Error"] = "An error occurred while loading the document. Please try again.";
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
+    /// <summary>
     /// UPLOAD-1: the upload form must be reachable via GET at /Documents/Upload
     /// (the Documents landing page links here). Render-only — all ingestion
     /// behavior lives in the POST action below.

@@ -51,10 +51,7 @@
                                     <th scope="col">Type</th>
                                     <th scope="col" class="text-end">Size</th>
                                     <th scope="col">Uploaded At</th>
-                                    @if (ViewData["CanDeleteDocuments"] is true)
-                                    {
-                                        <th scope="col" class="text-end">Actions</th>
-                                    }
+                                    <th scope="col" class="text-end">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -65,9 +62,10 @@
                                         <td><span class="badge text-bg-light border">@doc.ContentType</span></td>
                                         <td class="text-end text-nowrap">@FormatSize(doc.Size)</td>
                                         <td class="text-nowrap">@doc.CreatedAt.ToLocalTime().ToString("g")</td>
-                                        @if (ViewData["CanDeleteDocuments"] is true)
-                                        {
-                                            <td class="text-end">
+                                        <td class="text-end text-nowrap">
+                                            <a asp-action="View" asp-route-id="@doc.Id" class="btn btn-sm btn-outline-secondary">View</a>
+                                            @if (ViewData["CanDeleteDocuments"] is true)
+                                            {
                                                 <form asp-action="Delete" asp-route-id="@doc.Id" method="post"
                                                       onsubmit="return confirm('Delete this document and all its indexed chunks? This cannot be undone.');">
                                                     @Html.AntiForgeryToken()
@@ -75,8 +73,8 @@
                                                         Delete
                                                     </button>
                                                 </form>
-                                            </td>
-                                        }
+                                            }
+                                        </td>
                                     </tr>
                                 }
                             </tbody>

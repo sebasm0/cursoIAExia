@@ -16,4 +16,5 @@ public interface IVectorStore
         CancellationToken ct = default);
     Task<IReadOnlyList<Document>> ListDocumentsAsync(CancellationToken ct = default);
     Task<bool> DeleteDocumentAsync(Guid documentId, CancellationToken ct = default);
+    Task<(Document? Document, byte[]? Content)> GetDocumentWithContentAsync(Guid documentId, CancellationToken ct = default);
 }

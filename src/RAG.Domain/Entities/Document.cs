@@ -7,4 +7,7 @@ public class Document
     public required string ContentType { get; set; }
     public long Size { get; set; }
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+
+    /// <summary>Raw uploaded file bytes, persisted so users can view the original.</summary>
+    public byte[]? Content { get; set; }
 }

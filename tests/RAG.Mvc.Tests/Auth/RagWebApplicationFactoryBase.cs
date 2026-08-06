@@ -74,6 +74,10 @@ public abstract class RagWebApplicationFactoryBase : WebApplicationFactory<Progr
             mockVectorStore
                 .Setup(v => v.DeleteDocumentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
+            mockVectorStore
+                .Setup(v => v.GetDocumentWithContentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((new Document { FileName = "sample.pdf", ContentType = "application/pdf", Size = 3 },
+                    new byte[] { 1, 2, 3 }));
             services.AddSingleton<IVectorStore>(mockVectorStore.Object);
 
             var mockReranker = new Mock<IReranker>();

@@ -56,6 +56,15 @@ public sealed class PgVectorStore : IVectorStore, IAsyncDisposable
             await cmd.ExecuteNonQueryAsync();
         }
 
+        // CREATE TABLE IF NOT EXISTS is a no-op for existing tables, so the
+        // content column is added explicitly for databases created before this
+        // column existed. IF NOT EXISTS keeps this idempotent on every startup.
+        await using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "ALTER TABLE documents ADD COLUMN IF NOT EXISTS content BYTEA";
+            await cmd.ExecuteNonQueryAsync();
+        }
+
         await using (var cmd = conn.CreateCommand())
         {
             cmd.CommandText = """
@@ -128,14 +137,16 @@ public sealed class PgVectorStore : IVectorStore, IAsyncDisposable
         await using (var docCmd = conn.CreateCommand())
         {
             docCmd.CommandText = """
-                INSERT INTO documents (id, file_name, content_type, size, created_at)
-                VALUES (@id, @fileName, @contentType, @size, @createdAt)
+                INSERT INTO documents (id, file_name, content_type, size, created_at, content)
+                VALUES (@id, @fileName, @contentType, @size, @createdAt, @content)
                 """;
             docCmd.Parameters.AddWithValue("id", document.Id);
             docCmd.Parameters.AddWithValue("fileName", document.FileName);
             docCmd.Parameters.AddWithValue("contentType", document.ContentType);
             docCmd.Parameters.AddWithValue("size", document.Size);
             docCmd.Parameters.AddWithValue("createdAt", document.CreatedAt);
+            var pDocContent = docCmd.Parameters.Add("content", NpgsqlTypes.NpgsqlDbType.Bytea);
+            pDocContent.Value = (object?)document.Content ?? DBNull.Value;
             await docCmd.ExecuteNonQueryAsync(ct);
         }
 
@@ -300,6 +311,38 @@ public sealed class PgVectorStore : IVectorStore, IAsyncDisposable
 
         // chunks cascade-delete via FK
         return affected > 0;
+    }
+
+    public async Task<(Document? Document, byte[]? Content)> GetDocumentWithContentAsync(
+        Guid documentId,
+        CancellationToken ct = default)
+    {
+        var ds = await GetDataSourceAsync();
+        await using var conn = await ds.OpenConnectionAsync(ct);
+
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT id, file_name, content_type, size, created_at, content
+            FROM documents
+            WHERE id = @id
+            """;
+        cmd.Parameters.AddWithValue("id", documentId);
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+            return (null, null);
+
+        var document = new Document
+        {
+            Id = reader.GetGuid(0),
+            FileName = reader.GetString(1),
+            ContentType = reader.GetString(2),
+            Size = reader.GetInt64(3),
+            CreatedAt = reader.GetDateTime(4),
+        };
+
+        var content = reader.IsDBNull(5) ? null : (byte[])reader.GetValue(5);
+        return (document, content);
     }
 
     // ─────────────── Cleanup ───────────────

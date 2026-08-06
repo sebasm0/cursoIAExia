@@ -26,7 +26,16 @@ public class IngestionService(
             Size = content.Length,
         };
 
-        var text = await parser.ParseAsync(content, ct);
+        // Capture the raw bytes BEFORE parsing so the original file can be
+        // served back later. Streams are forward-only, so copy the whole
+        // stream into memory first and parse from a fresh buffer.
+        await using var buffer = new MemoryStream();
+        await content.CopyToAsync(buffer, ct);
+        var fileBytes = buffer.ToArray();
+        document.Content = fileBytes;
+
+        await using var parseStream = new MemoryStream(fileBytes, writable: false);
+        var text = await parser.ParseAsync(parseStream, ct);
         var chunks = await chunker.ChunkAsync(document, text, ct);
 
         var batch = new List<(DocumentChunk Chunk, ReadOnlyMemory<float> Embedding)>();

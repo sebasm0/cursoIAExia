@@ -304,6 +304,62 @@ public class DocumentsControllerTests
         Assert.Equal(nameof(DocumentsController.Index), redirect.ActionName);
         Assert.Equal("The document does not exist or was already deleted.", controller.TempData["Message"]);
     }
+
+    // ── View: serves the original file inline ──
+
+    [Fact]
+    public async Task View_Get_WithContent_ReturnsFileResult()
+    {
+        var id = Guid.NewGuid();
+        var bytes = new byte[] { 0x25, 0x50, 0x44, 0x46 }; // %PDF
+        var mockVectorStore = new Mock<IVectorStore>();
+        mockVectorStore
+            .Setup(v => v.GetDocumentWithContentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new Document { FileName = "doc.pdf", ContentType = "application/pdf", Size = bytes.Length }, bytes));
+
+        var controller = CreateController(vectorStore: mockVectorStore.Object);
+
+        var result = await controller.View(id, CancellationToken.None);
+
+        var fileResult = Assert.IsType<FileContentResult>(result);
+        Assert.Equal("application/pdf", fileResult.ContentType);
+        Assert.Equal(bytes, fileResult.FileContents);
+        Assert.True(fileResult.EnableRangeProcessing);
+    }
+
+    [Fact]
+    public async Task View_Get_MissingContent_ReturnsNotFound()
+    {
+        var id = Guid.NewGuid();
+        var mockVectorStore = new Mock<IVectorStore>();
+        mockVectorStore
+            .Setup(v => v.GetDocumentWithContentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(((Document?)null, (byte[]?)null));
+
+        var controller = CreateController(vectorStore: mockVectorStore.Object);
+
+        var result = await controller.View(id, CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task View_Get_StoreThrows_RedirectsToIndexWithError()
+    {
+        var id = Guid.NewGuid();
+        var mockVectorStore = new Mock<IVectorStore>();
+        mockVectorStore
+            .Setup(v => v.GetDocumentWithContentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("db unavailable"));
+
+        var controller = CreateController(vectorStore: mockVectorStore.Object);
+
+        var result = await controller.View(id, CancellationToken.None);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(DocumentsController.Index), redirect.ActionName);
+        Assert.NotNull(controller.TempData["Error"]);
+    }
 }
 
 /// <summary>
