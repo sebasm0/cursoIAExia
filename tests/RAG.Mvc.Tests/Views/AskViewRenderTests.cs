@@ -35,10 +35,14 @@ public class AskViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Hacer una pregunta", body);
+        // Chat panel header.
+        Assert.Contains("AI Assistant", body);
+        Assert.Contains("RAG Activo", body);
         Assert.Contains("name=\"Query\"", body);
+        Assert.Contains("¿Qué desea saber sobre sus documentos?", body);
+        Assert.Contains("aria-label=\"Enviar pregunta\"", body);
         // Design-system helper hint (real copy, no placeholder text).
-        Assert.Contains("Las respuestas se generan únicamente a partir de sus documentos subidos.", body);
+        Assert.Contains("Las respuestas se generan únicamente a partir de sus documentos indexados.", body);
         Assert.DoesNotContain("lorem", body, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -65,7 +69,7 @@ public class AskViewRenderTests
         Assert.Contains("input-validation-error", body);
         Assert.Contains("Por favor, ingrese una pregunta.", body);
         Assert.Contains("name=\"Query\"", body);
-        Assert.Contains("a partir de sus documentos subidos", body);
+        Assert.Contains("a partir de sus documentos indexados", body);
     }
 
     // ── ASK-10: Answer screen renders question echo + answer + Ask another ──

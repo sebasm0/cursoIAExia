@@ -36,7 +36,10 @@ public class DocumentsViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Gestione los documentos del sistema RAG.", body);
+        // Breadcrumb + upload entry points on the current landing.
+        Assert.Contains("Base de conocimiento", body);
+        Assert.Contains("Agregar nuevo", body);
+        Assert.Contains("Arrastre su archivo aquí o haga clic para seleccionar", body);
         Assert.Contains("Formatos admitidos: .cs, .md, .pdf", body);
         // UPLOAD-1: the landing Upload action targets the reachable route.
         Assert.Contains("href=\"/Documents/Upload\"", body);

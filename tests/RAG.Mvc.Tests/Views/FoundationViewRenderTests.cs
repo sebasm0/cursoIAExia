@@ -17,10 +17,10 @@ public class FoundationViewRenderTests
     private static HttpClient CreateClient(WebApplicationFactory<Program> factory)
         => factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-    // ── UDS-2 / UDS-3: layout shell + theme toggle, default light ──
+    // ── UDS-2 / UDS-3: layout shell + theme toggle, default dark ──
 
     [Fact]
-    public async Task Home_Anonymous_DefaultThemeIsLight()
+    public async Task Home_Anonymous_DefaultThemeIsDark()
     {
         await using var factory = new AnonymousWebApplicationFactory();
         using var client = CreateClient(factory);
@@ -29,11 +29,11 @@ public class FoundationViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("data-bs-theme=\"light\"", body);
+        Assert.Contains("data-bs-theme=\"dark\"", body);
     }
 
     [Fact]
-    public async Task Layout_PreRendersThemeScript_WithLightFallback()
+    public async Task Layout_PreRendersThemeScript_WithDarkFallback()
     {
         await using var factory = new AnonymousWebApplicationFactory();
         using var client = CreateClient(factory);
@@ -41,10 +41,10 @@ public class FoundationViewRenderTests
         var body = await (await client.GetAsync("/")).Content.ReadAsStringAsync();
 
         // UDS-2/UDS-3: the inline head script reads the persisted choice before
-        // paint (no flash) and falls back to light when nothing is stored or JS
+        // paint (no flash) and falls back to dark when nothing is stored or JS
         // is disabled (server-rendered default).
         Assert.Contains("localStorage.getItem('rag-theme')", body);
-        Assert.Contains("|| 'light'", body);
+        Assert.Contains("|| 'dark'", body);
     }
 
     [Fact]
@@ -113,9 +113,9 @@ public class FoundationViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var css = await response.Content.ReadAsStringAsync();
-        Assert.Contains("--bs-primary: #0d6efd", css);
+        Assert.Contains("--bs-primary: #2f68f6", css);
         Assert.Contains("--bs-border-radius: .5rem", css);
-        Assert.Contains("--bs-focus-ring-color: #258cfb", css);
+        Assert.Contains("--bs-focus-ring-color: #2f68f6", css);
     }
 
     [Fact]

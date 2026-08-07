@@ -11,18 +11,31 @@
         <div class="col-lg-7 col-xl-6">
             <div class="card">
                 <div class="card-body p-4">
-                    <form asp-action="Upload" method="post" enctype="multipart/form-data">
+                    <form asp-action="Upload" method="post" enctype="multipart/form-data" id="upload-form">
                         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
                         <div class="mb-3">
                             <label for="file" class="form-label">Seleccionar archivo</label>
-                            <input type="file"
-                                   name="file"
-                                   id="file"
-                                   class="form-control"
-                                   accept=".cs,.md,.pdf"
-                                   required />
-                            <div class="form-text">Formatos admitidos: .cs (C#), .md (Markdown), .pdf (PDF). Tamaño máximo: 10 MB.</div>
+
+                            <span class="drop-zone" id="drop-zone">
+                                <input type="file"
+                                       name="file"
+                                       id="file"
+                                       class="drop-zone-input"
+                                       accept=".cs,.md,.pdf"
+                                       aria-describedby="drop-zone-title"
+                                       required />
+                                <span class="drop-zone-icon" aria-hidden="true">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-cloud-arrow-up" viewBox="0 0 16 16">
+                                        <path d="M13.405 1.025a1 1 0 0 1 .99.972l1.066 13.314a1 1 0 0 1-.995 1.053H1.534a1 1 0 0 1-.995-1.053L1.605 1.997a1 1 0 0 1 .99-.972zM7.5 3h1a.5.5 0 0 1 .5.5v5.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 9.293V3.5a.5.5 0 0 1 .5-.5"/>
+                                        <path d="M7.5 15A2.5 2.5 0 0 0 10 11.5H4v1A1 1 0 0 0 5 13h2.5z"/>
+                                    </svg>
+                                </span>
+                                <span class="drop-zone-title" id="drop-zone-title">Arrastre su archivo aquí o haga clic para seleccionar</span>
+                                <span class="drop-zone-meta">Formatos admitidos: .cs (C#), .md (Markdown), .pdf (PDF). Tamaño máximo: 10 MB.</span>
+                                <span class="drop-zone-file" id="drop-zone-file" hidden></span>
+                            </span>
+
                             @Html.ValidationMessage("file", new { @class = "text-danger", id = "file-validation" })
                         </div>
 
@@ -46,31 +59,98 @@
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
 
     <script>
-        document.getElementById('file')?.addEventListener('change', function () {
+        (function () {
+            const zone = document.getElementById('drop-zone');
+            const input = document.getElementById('file');
             const validation = document.getElementById('file-validation');
+            const fileDisplay = document.getElementById('drop-zone-file');
+
+            if (!zone || !input) {
+                return; // progressive enhancement: plain input remains usable
+            }
+
             const maxSize = 10 * 1024 * 1024; // 10 MB
+            const allowed = ['.cs', '.md', '.pdf'];
 
-            if (this.files.length === 0) {
+            function formatBytes(bytes) {
+                if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+                if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                return bytes + ' B';
+            }
+
+            function validate(file) {
+                const ext = (file.name.substring(file.name.lastIndexOf('.')) || '').toLowerCase();
+                if (!allowed.includes(ext)) {
+                    return 'Tipo de archivo no admitido. Formatos admitidos: .cs, .md, .pdf.';
+                }
+                if (file.size > maxSize) {
+                    return 'El archivo supera el tamaño máximo de subida de 10 MB.';
+                }
+                return '';
+            }
+
+            function renderSelection() {
+                if (!input.files.length) {
+                    validation.textContent = '';
+                    fileDisplay.hidden = true;
+                    return;
+                }
+                const file = input.files[0];
+                const error = validate(file);
+                if (error) {
+                    validation.textContent = error;
+                    input.value = '';
+                    fileDisplay.hidden = true;
+                    return;
+                }
                 validation.textContent = '';
-                return;
+                fileDisplay.hidden = false;
+                // R1-XSS: build the display with text nodes only so a filename
+                // containing markup (e.g. "<img onerror=...>.pdf") is never
+                // parsed as HTML. innerHTML would be a DOM-based injection sink.
+                fileDisplay.textContent = '';
+                const nameNode = document.createTextNode(file.name + ' ');
+                const metaNode = document.createElement('small');
+                metaNode.textContent = formatBytes(file.size) + ' · listo para subir';
+                fileDisplay.append(nameNode, metaNode);
             }
 
-            const file = this.files[0];
-            const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+            // Selection via the picker (keyboard + click, native <input>).
+            input.addEventListener('change', renderSelection);
 
-            if (!['.cs', '.md', '.pdf'].includes(ext)) {
-                validation.textContent = 'Tipo de archivo no admitido. Formatos admitidos: .cs, .md, .pdf.';
-                this.value = '';
-                return;
+            // Drag & drop.
+            const zoneTitle = document.getElementById('drop-zone-title');
+            const zoneDefaultTitle = zoneTitle ? zoneTitle.textContent.trim() : '';
+
+            function setDragActive(active) {
+                zone.classList.toggle('dropzone-active', active);
+                if (zoneTitle) {
+                    zoneTitle.textContent = active ? 'Suelte para subir' : zoneDefaultTitle;
+                }
             }
 
-            if (file.size > maxSize) {
-                validation.textContent = 'El archivo supera el tamaño máximo de subida de 10 MB.';
-                this.value = '';
-                return;
-            }
+            ['dragenter', 'dragover'].forEach(function (type) {
+                zone.addEventListener(type, function (e) {
+                    e.preventDefault();
+                    setDragActive(true);
+                });
+            });
 
-            validation.textContent = '';
-        });
+            ['dragleave', 'drop'].forEach(function (type) {
+                zone.addEventListener(type, function (e) {
+                    e.preventDefault();
+                    setDragActive(false);
+                });
+            });
+
+            zone.addEventListener('drop', function (e) {
+                const files = e.dataTransfer && e.dataTransfer.files;
+                if (!files || !files.length) {
+                    return;
+                }
+                input.files = files;
+                renderSelection();
+            });
+        })();
     </script>
 }

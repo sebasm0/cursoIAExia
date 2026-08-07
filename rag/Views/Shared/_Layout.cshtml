@@ -1,18 +1,29 @@
 ﻿<!DOCTYPE html>
 @inject SignInManager<ApplicationUser> SignInManager
-<html lang="es" data-bs-theme="light">
+@{
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+    var IsActive = (string name) => string.Equals(controller, name, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+    string? initials = null;
+    if (SignInManager.IsSignedIn(User) && !string.IsNullOrWhiteSpace(User.Identity!.Name))
+    {
+        initials = string.Concat(User.Identity.Name.Split(' ')
+            .Take(2)
+            .Select(p => p.Length > 0 ? p[0] : ' '));
+    }
+}
+<html lang="es" data-bs-theme="dark">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - RAG EXIA</title>
     <script>
-        // UDS-2/UDS-3: apply the persisted theme before first paint (no flash).
-        // No stored value — or no JavaScript at all — keeps the server-rendered
-        // light default (UDS-3 "usable without JS").
+        // Dark-first (Dribbble "RAG Interface" reference): apply the persisted
+        // theme before first paint (no flash). No stored value keeps the
+        // server-rendered dark default.
         (function () {
             document.documentElement.setAttribute(
                 'data-bs-theme',
-                localStorage.getItem('rag-theme') || 'light');
+                localStorage.getItem('rag-theme') || 'dark');
         })();
     </script>
     <script type="importmap"></script>
@@ -21,78 +32,136 @@
     <link rel="stylesheet" href="~/rag.styles.css" asp-append-version="true" />
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-lg navbar-rag">
-            <div class="container">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">RAG EXIA</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#mainNav" aria-controls="mainNav"
-                        aria-expanded="false" aria-label="Activar o desactivar navegación">
-                    <span class="navbar-toggler-icon"></span>
+    <div class="dashboard-shell">
+        <button class="sidebar-backdrop" type="button" tabindex="-1" aria-label="Cerrar menú" id="sidebar-backdrop"></button>
+
+        <aside class="sidebar-rag" id="appSidebar" aria-label="Navegación principal">
+            <div class="sidebar-brand">
+                <a class="sidebar-brand-link" asp-area="" asp-controller="Home" asp-action="Index">
+                    <span class="brand-mark" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8 0c-2 3-4 2.5-4 6a4 4 0 0 0 8 0c0-3.5-2-3-4-6Zm0 10c-1.1 0-2-.9-2-2 0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2Z"/>
+                        </svg>
+                    </span>
+                    RAG EXIA
+                </a>
+                <button class="sidebar-close" type="button" id="sidebar-close" aria-label="Cerrar menú">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708Z"/>
+                    </svg>
                 </button>
-                <div class="collapse navbar-collapse" id="mainNav">
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">Inicio</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Ask" asp-action="Index">Preguntar</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Documents" asp-action="Index">Documentos</a>
-                        </li>
-                        @if (User.HasClaim(Permissions.ClaimType, Permissions.AdminUsers)
-                            || User.HasClaim(Permissions.ClaimType, Permissions.AdminRoles)
-                            || User.HasClaim(Permissions.ClaimType, Permissions.AdminPermissions))
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Admin" asp-action="Users">Administración</a>
-                            </li>
-                        }
-                    </ul>
-                    <ul class="navbar-nav align-items-lg-center">
-                        <li class="nav-item me-lg-2">
-                            <button id="theme-toggle" type="button" class="btn btn-icon"
-                                    aria-label="Activar o desactivar modo oscuro" aria-pressed="false">
-                                <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                                    <path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/>
-                                </svg>
-                                <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                                    <path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6m0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/>
-                                </svg>
-                            </button>
-                        </li>
-                        @if (SignInManager.IsSignedIn(User))
-                        {
-                            <li class="nav-item">
-                                <span class="navbar-text me-2">@User.Identity!.Name</span>
-                            </li>
-                            <li class="nav-item">
-                                <form class="d-inline" asp-controller="Account" asp-action="Logout" method="post">
-                                    <button type="submit" class="btn btn-outline-primary btn-sm">Cerrar sesión</button>
-                                </form>
-                            </li>
-                        }
-                        else
-                        {
-                            <li class="nav-item">
-                                <a class="btn btn-primary btn-sm" asp-controller="Account" asp-action="Login">Iniciar sesión</a>
-                            </li>
-                        }
-                    </ul>
+            </div>
+
+            @if (SignInManager.IsSignedIn(User))
+            {
+                <div class="sidebar-user">
+                    <span class="avatar" aria-hidden="true">@initials</span>
+                    <div>
+                        <span class="sidebar-user-name">@User.Identity!.Name</span>
+                        <span class="sidebar-user-role">Cuenta</span>
+                    </div>
+                </div>
+            }
+
+            <nav class="sidebar-nav">
+                <span class="sidebar-section-title">Menú</span>
+                <a class="sidebar-link @IsActive("Home")" asp-area="" asp-controller="Home" asp-action="Index">
+                    <span class="sidebar-link-icon" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293zM13 7.207V13.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V7.207l5-5z"/>
+                        </svg>
+                    </span>
+                    Inicio
+                </a>
+                <a class="sidebar-link @IsActive("Ask")" asp-area="" asp-controller="Ask" asp-action="Index">
+                    <span class="sidebar-link-icon" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.504-1.246 1.16-1.246 2.005v.248c0 .13.102.23.23.23h.764A.23.23 0 0 0 8 9.32V9.11c0-.564.28-.8.964-1.307.701-.525 1.3-1.16 1.3-2.246C10.264 4.065 9.135 3.5 8.09 3.5 6.79 3.5 5.62 4.35 5.255 5.786M8 12a.93.93 0 0 0 .928-.927.928.928 0 0 0-1.856 0A.928.928 0 0 0 8 12"/>
+                        </svg>
+                    </span>
+                    Preguntar
+                </a>
+                <a class="sidebar-link @IsActive("Documents")" asp-area="" asp-controller="Documents" asp-action="Index">
+                    <span class="sidebar-link-icon" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M2 1a1 1 0 0 1 1-1h8.586A1 1 0 0 1 13 .586l2.414 2.414A1 1 0 0 1 16 4.414V15a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1zM2 1v14a1 1 0 0 0 1 1h11V4.5h-3.5A1.5 1.5 0 0 1 9 3V2H3a1 1 0 0 0-1 1m6.707 12.707a.5.5 0 0 1-.708 0l-2-2a.5.5 0 0 1 .708-.708L8 12.293l1.293-1.294a.5.5 0 0 1 .708.708L8 12.293l0 .001 2 2a.5.5 0 0 1 0 .707z"/>
+                            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2a.5.5 0 0 1 1 0v2a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2a.5.5 0 0 1 .5-.5"/>
+                        </svg>
+                    </span>
+                    Documentos
+                </a>
+                @if (User.HasClaim(Permissions.ClaimType, Permissions.AdminUsers)
+                    || User.HasClaim(Permissions.ClaimType, Permissions.AdminRoles)
+                    || User.HasClaim(Permissions.ClaimType, Permissions.AdminPermissions))
+                {
+                    <a class="sidebar-link @IsActive("Admin")" asp-controller="Admin" asp-action="Users">
+                        <span class="sidebar-link-icon" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M8.5 3a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0M2 7a1 1 0 0 0 0 2h12a2 2 0 0 0 0-4H2a1 1 0 0 0 0 2m1 0a1 1 0 0 1 0 2zm9-4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3M2 11a1 1 0 0 0 0 2h8a1 1 0 0 0 0-2zm11-1a1 1 0 0 0 0 2H11a1 1 0 0 0 0 2h2a1 1 0 0 0 0-2"/>
+                            </svg>
+                        </span>
+                        Administración
+                    </a>
+                }
+            </nav>
+
+            <div class="sidebar-footer">
+                <a class="sidebar-link" asp-controller="Home" asp-action="Privacy">
+                    <span class="sidebar-link-icon" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8.879 1.109a1.5 1.5 0 0 0-1.758 0l-6.5 4.5A1.5 1.5 0 0 0 0 6.759v6.62c0 .94.75 1.621 1.75 1.621h12.5c1 0 1.75-.68 1.75-1.62v-6.62c0-.47-.16-.91-.621-1.15l-6.5-4.5Z"/>
+                            <path d="M6 12.5v-3h4v3zM5 9a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"/>
+                        </svg>
+                    </span>
+                    Ajustes
+                </a>
+                <div class="sidebar-actions">
+                    <button id="theme-toggle" type="button" class="btn btn-icon"
+                            aria-label="Cambiar a modo claro" aria-pressed="true">
+                        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/>
+                        </svg>
+                        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6m0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/>
+                        </svg>
+                    </button>
+                    @if (SignInManager.IsSignedIn(User))
+                    {
+                        <form class="flex-grow-1" asp-controller="Account" asp-action="Logout" method="post">
+                            <button type="submit" class="btn btn-outline-primary btn-sm w-100">Cerrar sesión</button>
+                        </form>
+                    }
+                    else
+                    {
+                        <a class="btn btn-primary btn-sm flex-grow-1" asp-controller="Account" asp-action="Login">Iniciar sesión</a>
+                    }
                 </div>
             </div>
-        </nav>
-    </header>
-    <main role="main" class="container py-4">
-        @RenderBody()
-    </main>
-    <footer class="footer-rag">
-        <div class="container py-3 d-flex justify-content-between flex-wrap gap-2">
-            <span>&copy; 2026 RAG EXIA</span>
-            <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacidad</a>
+        </aside>
+
+        <div class="dashboard-main">
+            <header class="mobile-bar">
+                <button class="sidebar-toggle" type="button" id="sidebar-toggle" aria-label="Abrir menú de navegación">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5M2.5 4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0 4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/>
+                    </svg>
+                </button>
+                <span class="fw-semibold">RAG EXIA</span>
+            </header>
+
+            <main role="main" class="dashboard-page">
+                @RenderBody()
+            </main>
+
+            <footer class="footer-rag mt-auto">
+                <div class="py-3 px-4 d-flex justify-content-between flex-wrap gap-2">
+                    <span>&copy; 2026 RAG EXIA</span>
+                    <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacidad</a>
+                </div>
+            </footer>
         </div>
-    </footer>
+    </div>
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>

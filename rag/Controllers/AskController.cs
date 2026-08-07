@@ -25,7 +25,9 @@ public class AskController : Controller
 
     public IActionResult Index()
     {
-        return View();
+        // ASK-21 (chat UI): the view renders null-conditional fields; a bare
+        // null model would NRE, so supply an empty view model for the initial GET.
+        return View(new AskViewModel());
     }
 
     [HttpPost]
