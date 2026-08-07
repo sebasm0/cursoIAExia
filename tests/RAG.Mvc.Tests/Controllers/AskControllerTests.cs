@@ -48,7 +48,7 @@ public class AskControllerTests
 
         Assert.False(controller.ModelState.IsValid);
         var error = Assert.Single(controller.ModelState["Query"]?.Errors ?? []);
-        Assert.Contains("question", error.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("pregunta", error.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     // ── 5.4 Integration: Valid question renders answer ──
@@ -73,7 +73,7 @@ public class AskControllerTests
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
 
-        Assert.Contains("Answer", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Respuesta", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Paris", body, StringComparison.OrdinalIgnoreCase);
     }
 

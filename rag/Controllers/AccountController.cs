@@ -67,12 +67,12 @@ public class AccountController : Controller
         if (result.IsLockedOut)
         {
             // AUTH-2: lockout after MaxFailedAccessAttempts within the window.
-            ModelState.AddModelError(string.Empty, "This account is locked out. Please try again later.");
+            ModelState.AddModelError(string.Empty, "Esta cuenta ha sido bloqueada temporalmente. Intente de nuevo más tarde.");
             return View(model);
         }
 
         // AUTH-2: generic message — never reveal which input was wrong.
-        ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+        ModelState.AddModelError(string.Empty, "Intento de inicio de sesión inválido.");
         return View(model);
     }
 
@@ -116,13 +116,13 @@ public class AccountController : Controller
                 new { userId = user.Id, token }, protocol: Request.Scheme);
             await _emailSender.SendAsync(
                 model.Email,
-                "Password reset",
-                $"Reset your password: <a href=\"{resetLink}\">link</a>");
+                "Restablecimiento de contraseña",
+                $"Restablezca su contraseña: <a href=\"{resetLink}\">enlace</a>");
         }
 
         // AUTH-4: identical generic confirmation whether or not the account exists —
         // the difference is observable only in the console/email stub output.
-        ViewData["Message"] = "If an account exists for that email address, a password reset link has been sent.";
+        ViewData["Message"] = "Si existe una cuenta con ese correo electrónico, se ha enviado un enlace de restablecimiento de contraseña.";
         return View(model);
     }
 
@@ -147,17 +147,17 @@ public class AccountController : Controller
 
         var user = await _userManager.FindByIdAsync(model.UserId);
         var result = user is null
-            ? IdentityResult.Failed(new IdentityError { Description = "Invalid password reset token." })
+            ? IdentityResult.Failed(new IdentityError { Description = "Token de restablecimiento de contraseña inválido." })
             : await _userManager.ResetPasswordAsync(user, model.Token, model.Password);
 
         if (result.Succeeded)
         {
-            ViewData["Message"] = "Your password has been reset. You can now sign in with your new password.";
+            ViewData["Message"] = "Su contraseña ha sido restablecida. Ya puede iniciar sesión con su nueva contraseña.";
             return View(model);
         }
 
         // AUTH-5: generic error — never leak whether the account or token was the problem.
-        ViewData["Error"] = "Invalid or expired password reset token. Please request a new reset link.";
+        ViewData["Error"] = "Token de restablecimiento inválido o vencido. Solicite un nuevo enlace de restablecimiento.";
         return View(model);
     }
 }

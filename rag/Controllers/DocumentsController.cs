@@ -57,7 +57,7 @@ public class DocumentsController : Controller
         {
             _logger.LogError(ex, "Error listing documents");
             ViewData["LoadFailed"] = true;
-            TempData["Error"] = "The document list could not be loaded. The service may be temporarily unavailable.";
+            TempData["Error"] = "No se pudo cargar la lista de documentos. El servicio puede estar temporalmente no disponible.";
             documents = [];
         }
 
@@ -78,13 +78,13 @@ public class DocumentsController : Controller
         {
             var deleted = await _vectorStore.DeleteDocumentAsync(id, ct);
             TempData["Message"] = deleted
-                ? "Document deleted successfully."
-                : "The document does not exist or was already deleted.";
+                ? "Documento eliminado correctamente."
+                : "El documento no existe o ya fue eliminado.";
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting document: {DocumentId}", id);
-            TempData["Error"] = "An error occurred while deleting the document. Please try again.";
+            TempData["Error"] = "Se produjo un error al eliminar el documento. Intente de nuevo.";
         }
 
         return RedirectToAction(nameof(Index));
@@ -113,7 +113,7 @@ public class DocumentsController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error viewing document: {DocumentId}", id);
-            TempData["Error"] = "An error occurred while loading the document. Please try again.";
+            TempData["Error"] = "Se produjo un error al cargar el documento. Intente de nuevo.";
             return RedirectToAction(nameof(Index));
         }
     }
@@ -136,7 +136,7 @@ public class DocumentsController : Controller
     {
         if (file == null || file.Length == 0)
         {
-            ModelState.AddModelError("file", "The selected file is empty. Please choose a file with content.");
+            ModelState.AddModelError("file", "El archivo seleccionado está vacío. Elija un archivo con contenido.");
             return View();
         }
 
@@ -144,14 +144,14 @@ public class DocumentsController : Controller
         if (!AllowedExtensions.ContainsKey(extension))
         {
             ModelState.AddModelError("file",
-                $"Unsupported file type '{(string.IsNullOrEmpty(extension) ? "(no extension)" : extension)}'. Supported types: .cs, .md, .pdf");
+                $"Tipo de archivo no admitido '{(string.IsNullOrEmpty(extension) ? "(sin extensión)" : extension)}'. Formatos admitidos: .cs, .md, .pdf");
             return View();
         }
 
         if (file.Length > _maxFileSize)
         {
             ModelState.AddModelError("file",
-                $"File exceeds the maximum upload size of {_maxFileSize / (1024 * 1024)} MB.");
+                $"El archivo supera el tamaño máximo de subida de {_maxFileSize / (1024 * 1024)} MB.");
             return View();
         }
 
@@ -178,7 +178,7 @@ public class DocumentsController : Controller
             var viewModel = new UploadViewModel
             {
                 FileName = file.FileName,
-                ErrorMessage = $"The file could not be parsed: {ex.Message}",
+                ErrorMessage = $"No se pudo procesar el archivo: {ex.Message}",
             };
             return View("Result", viewModel);
         }
@@ -188,7 +188,7 @@ public class DocumentsController : Controller
             var viewModel = new UploadViewModel
             {
                 FileName = file.FileName,
-                ErrorMessage = "An error occurred while processing the file. The service may be temporarily unavailable. Please try again.",
+                ErrorMessage = "Se produjo un error al procesar el archivo. El servicio puede estar temporalmente no disponible. Intente de nuevo.",
             };
             return View("Result", viewModel);
         }

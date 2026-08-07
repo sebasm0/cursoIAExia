@@ -1,11 +1,11 @@
 @model AskViewModel
 @{
-    ViewData["Title"] = "Ask a Question";
+    ViewData["Title"] = "Hacer una pregunta";
 }
 
 <div class="py-4">
-    <h1 class="display-6 mb-2">Ask a Question</h1>
-    <p class="lead mb-4">Ask questions about your indexed documents and get answers with sources.</p>
+    <h1 class="display-6 mb-2">Hacer una pregunta</h1>
+    <p class="lead mb-4">Haga preguntas sobre sus documentos indexados y obtenga respuestas con fuentes.</p>
 
     <div class="row">
         <div class="col-lg-7 col-xl-6">
@@ -15,10 +15,10 @@
                         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
                         <div class="mb-3">
-                            <label asp-for="Query" class="form-label">Your question</label>
+                            <label asp-for="Query" class="form-label">Su pregunta</label>
                             <textarea asp-for="Query" class="form-control" rows="5"
-                                      placeholder="What would you like to know about your documents?" required></textarea>
-                            <div class="form-text">Answers are generated from your uploaded documents only.</div>
+                                      placeholder="¿Qué desea saber sobre sus documentos?" required></textarea>
+                            <div class="form-text">Las respuestas se generan únicamente a partir de sus documentos subidos.</div>
                             <span asp-validation-for="Query" class="text-danger"></span>
                         </div>
 
@@ -26,7 +26,7 @@
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-send me-1" viewBox="0 0 16 16" aria-hidden="true">
                                 <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
                             </svg>
-                            Ask
+                            Preguntar
                         </button>
                     </form>
                 </div>

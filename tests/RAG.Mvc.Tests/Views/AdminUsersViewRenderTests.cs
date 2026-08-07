@@ -64,7 +64,7 @@ public class AdminUsersViewRenderTests
         Assert.Contains("alice@example.com", body);
         Assert.Contains("User", body);
         // Primary action per the reference screen.
-        Assert.Contains("Create user", body);
+        Assert.Contains("Crear usuario", body);
         // UDS-4: no placeholder copy.
         Assert.DoesNotContain("lorem", body, StringComparison.OrdinalIgnoreCase);
     }
@@ -124,7 +124,7 @@ public class AdminUsersViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Create user", body);
+        Assert.Contains("Crear usuario", body);
         Assert.Contains("name=\"UserName\"", body);
         Assert.Contains("name=\"Email\"", body);
         Assert.Contains("name=\"Password\"", body);

@@ -8,16 +8,19 @@ namespace rag.Models;
 /// </summary>
 public class CreateUserViewModel
 {
-    [Required]
+    [Required(ErrorMessage = "El campo Nombre de usuario es obligatorio.")]
+    [Display(Name = "Nombre de usuario")]
     public string UserName { get; set; } = string.Empty;
 
-    [Required]
-    [EmailAddress]
+    [Required(ErrorMessage = "El campo Correo electrónico es obligatorio.")]
+    [EmailAddress(ErrorMessage = "El campo debe ser una dirección de correo electrónico válida.")]
+    [Display(Name = "Correo electrónico")]
     public string Email { get; set; } = string.Empty;
 
-    [Required]
-    [StringLength(100, MinimumLength = 8)]
+    [Required(ErrorMessage = "El campo Contraseña es obligatorio.")]
+    [StringLength(100, MinimumLength = 6, ErrorMessage = "La contraseña debe tener al menos 6 caracteres.")]
     [DataType(DataType.Password)]
+    [Display(Name = "Contraseña")]
     public string Password { get; set; } = string.Empty;
 
     /// <summary>

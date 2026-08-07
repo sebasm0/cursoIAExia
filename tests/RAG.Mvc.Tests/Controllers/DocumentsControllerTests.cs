@@ -112,7 +112,7 @@ public class DocumentsControllerTests
 
         Assert.False(controller.ModelState.IsValid);
         var error = Assert.Single(controller.ModelState["file"]?.Errors ?? []);
-        Assert.Contains("empty", error.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("vacío", error.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     // ── UPLOAD-1: GET Upload renders the form (reachable route) ──
@@ -156,7 +156,7 @@ public class DocumentsControllerTests
 
         Assert.False(controller.ModelState.IsValid);
         var error = Assert.Single(controller.ModelState["file"]?.Errors ?? []);
-        Assert.Contains("maximum upload size", error.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("supera el tama", error.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     // ── 5.5 Integration: Upload valid file renders success ──
@@ -178,7 +178,7 @@ public class DocumentsControllerTests
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
 
-        Assert.Contains("success", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Subido correctamente", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Hello.cs", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("text/plain", body, StringComparison.OrdinalIgnoreCase);
     }
@@ -266,7 +266,7 @@ public class DocumentsControllerTests
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal(nameof(DocumentsController.Index), redirect.ActionName);
         mockVectorStore.Verify(v => v.DeleteDocumentAsync(id, It.IsAny<CancellationToken>()), Times.Once);
-        Assert.Equal("Document deleted successfully.", controller.TempData["Message"]);
+        Assert.Equal("Documento eliminado correctamente.", controller.TempData["Message"]);
     }
 
     [Fact]
@@ -302,7 +302,7 @@ public class DocumentsControllerTests
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal(nameof(DocumentsController.Index), redirect.ActionName);
-        Assert.Equal("The document does not exist or was already deleted.", controller.TempData["Message"]);
+        Assert.Equal("El documento no existe o ya fue eliminado.", controller.TempData["Message"]);
     }
 
     // ── View: serves the original file inline ──

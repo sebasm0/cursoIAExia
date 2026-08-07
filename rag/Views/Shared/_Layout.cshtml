@@ -1,10 +1,10 @@
 ﻿<!DOCTYPE html>
 @inject SignInManager<ApplicationUser> SignInManager
-<html lang="en" data-bs-theme="light">
+<html lang="es" data-bs-theme="light">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - RAG</title>
+    <title>@ViewData["Title"] - RAG EXIA</title>
     <script>
         // UDS-2/UDS-3: apply the persisted theme before first paint (no flash).
         // No stored value — or no JavaScript at all — keeps the server-rendered
@@ -24,36 +24,36 @@
     <header>
         <nav class="navbar navbar-expand-lg navbar-rag">
             <div class="container">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">RAG</a>
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">RAG EXIA</a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
                         data-bs-target="#mainNav" aria-controls="mainNav"
-                        aria-expanded="false" aria-label="Toggle navigation">
+                        aria-expanded="false" aria-label="Activar o desactivar navegación">
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="collapse navbar-collapse" id="mainNav">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">Inicio</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Ask" asp-action="Index">Ask</a>
+                            <a class="nav-link" asp-area="" asp-controller="Ask" asp-action="Index">Preguntar</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Documents" asp-action="Index">Documents</a>
+                            <a class="nav-link" asp-area="" asp-controller="Documents" asp-action="Index">Documentos</a>
                         </li>
                         @if (User.HasClaim(Permissions.ClaimType, Permissions.AdminUsers)
                             || User.HasClaim(Permissions.ClaimType, Permissions.AdminRoles)
                             || User.HasClaim(Permissions.ClaimType, Permissions.AdminPermissions))
                         {
                             <li class="nav-item">
-                                <a class="nav-link" asp-controller="Admin" asp-action="Users">Admin</a>
+                                <a class="nav-link" asp-controller="Admin" asp-action="Users">Administración</a>
                             </li>
                         }
                     </ul>
                     <ul class="navbar-nav align-items-lg-center">
                         <li class="nav-item me-lg-2">
                             <button id="theme-toggle" type="button" class="btn btn-icon"
-                                    aria-label="Toggle dark mode" aria-pressed="false">
+                                    aria-label="Activar o desactivar modo oscuro" aria-pressed="false">
                                 <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                                     <path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/>
                                 </svg>
@@ -69,14 +69,14 @@
                             </li>
                             <li class="nav-item">
                                 <form class="d-inline" asp-controller="Account" asp-action="Logout" method="post">
-                                    <button type="submit" class="btn btn-outline-primary btn-sm">Logout</button>
+                                    <button type="submit" class="btn btn-outline-primary btn-sm">Cerrar sesión</button>
                                 </form>
                             </li>
                         }
                         else
                         {
                             <li class="nav-item">
-                                <a class="btn btn-primary btn-sm" asp-controller="Account" asp-action="Login">Login</a>
+                                <a class="btn btn-primary btn-sm" asp-controller="Account" asp-action="Login">Iniciar sesión</a>
                             </li>
                         }
                     </ul>
@@ -89,8 +89,8 @@
     </main>
     <footer class="footer-rag">
         <div class="container py-3 d-flex justify-content-between flex-wrap gap-2">
-            <span>&copy; 2026 RAG</span>
-            <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+            <span>&copy; 2026 RAG EXIA</span>
+            <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacidad</a>
         </div>
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>

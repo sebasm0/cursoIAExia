@@ -1,14 +1,14 @@
 @model CreateUserViewModel
 @{
-    ViewData["Title"] = "Create user";
+    ViewData["Title"] = "Crear usuario";
 }
 
 <div class="row justify-content-center py-4">
     <div class="col-12 col-md-8 col-lg-6">
         <div class="card form-card">
             <div class="card-body p-4 p-md-5">
-                <h1 class="h3 mb-1">Create user</h1>
-                <p class="text-muted mb-4">Create an account and assign its initial roles.</p>
+                <h1 class="h3 mb-1">Crear usuario</h1>
+                <p class="text-muted mb-4">Cree una cuenta y asigne sus roles iniciales.</p>
 
                 <form asp-action="UsersCreate" method="post">
                     <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
@@ -43,8 +43,8 @@
                         }
                     </fieldset>
 
-                    <button type="submit" class="btn btn-primary">Create user</button>
-                    <a asp-action="Users" class="btn btn-link">Back to list</a>
+                    <button type="submit" class="btn btn-primary">Crear usuario</button>
+                    <a asp-action="Users" class="btn btn-link">Volver a la lista</a>
                 </form>
             </div>
         </div>

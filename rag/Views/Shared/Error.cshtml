@@ -7,19 +7,19 @@
     <div class="col-12 col-md-8 col-lg-6">
         <div class="card error-card">
             <div class="card-body p-4 p-md-5 text-center">
-                <h1 class="h3 mb-3">Something went wrong</h1>
+                <h1 class="h3 mb-3">Se produjo un error</h1>
                 <p class="text-secondary mb-4">
-                    An unexpected error occurred while processing your request. Our team has been notified.
+                    Se produjo un error inesperado al procesar su solicitud. Nuestro equipo ha sido notificado.
                 </p>
 
                 @if (Model.ShowRequestId)
                 {
                     <p class="small text-secondary mb-4">
-                        <strong>Request ID:</strong> <code>@Model.RequestId</code>
+                        <strong>ID de la solicitud:</strong> <code>@Model.RequestId</code>
                     </p>
                 }
 
-                <a asp-controller="Home" asp-action="Index" class="btn btn-primary">Back to Home</a>
+                <a asp-controller="Home" asp-action="Index" class="btn btn-primary">Volver al inicio</a>
             </div>
         </div>
     </div>

@@ -89,7 +89,7 @@ public class AdminRoleFlowTests
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         var index = await client.GetAsync(response.Headers.Location!.OriginalString);
         var body = await index.Content.ReadAsStringAsync();
-        Assert.Contains("still has members", body);
+        Assert.Contains("tiene usuarios asignados", body);
         Assert.True(await factory.RoleExistsAsync("Operator"), "A role with members must survive deletion.");
     }
 
@@ -108,7 +108,7 @@ public class AdminRoleFlowTests
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         var index = await client.GetAsync(response.Headers.Location!.OriginalString);
         var body = await index.Content.ReadAsStringAsync();
-        Assert.Contains("cannot be deleted", body);
+        Assert.Contains("no se puede eliminar", body);
         Assert.True(await factory.RoleExistsAsync("Admin"), "The built-in Admin role must never be deleted.");
     }
 
@@ -148,7 +148,7 @@ public class AdminRoleFlowTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("already exists", body);
+        Assert.Contains("ya existe", body);
     }
 
     // ── ADMIN-6: Role edit permission matrix (admin.permissions) ──
@@ -245,7 +245,7 @@ public class AdminRoleFlowTests
 
         var denied = await client.GetAsync(response.Headers.Location!.AbsolutePath);
         var body = await denied.Content.ReadAsStringAsync();
-        Assert.Contains("Access denied", body);
+        Assert.Contains("Acceso denegado", body);
     }
 
     [Fact]

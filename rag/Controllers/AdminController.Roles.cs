@@ -61,7 +61,7 @@ public partial class AdminController
         if (string.IsNullOrWhiteSpace(roleName))
         {
             // Empty-key so asp-validation-summary="ModelOnly" renders it.
-            ModelState.AddModelError(string.Empty, "Role name is required.");
+            ModelState.AddModelError(string.Empty, "El nombre del rol es obligatorio.");
             return View("Roles/Create");
         }
 
@@ -69,7 +69,7 @@ public partial class AdminController
         if (await _roleManager.RoleExistsAsync(name))
         {
             // ADMIN-5: duplicate role names are rejected.
-            ModelState.AddModelError(string.Empty, $"Role '{name}' already exists.");
+            ModelState.AddModelError(string.Empty, $"El rol '{name}' ya existe.");
             return View("Roles/Create");
         }
 
@@ -99,21 +99,21 @@ public partial class AdminController
 
         if (IsBuiltInRole(role.Name!))
         {
-            TempData["AdminError"] = $"The built-in '{role.Name}' role cannot be deleted.";
+            TempData["AdminError"] = $"El rol integrado '{role.Name}' no se puede eliminar.";
             return RedirectToAction(nameof(Roles));
         }
 
         var members = await _userManager.GetUsersInRoleAsync(role.Name!);
         if (members.Count > 0)
         {
-            TempData["AdminError"] = $"Role '{role.Name}' still has members and cannot be deleted.";
+            TempData["AdminError"] = $"El rol '{role.Name}' aún tiene usuarios asignados y no se puede eliminar.";
             return RedirectToAction(nameof(Roles));
         }
 
         var result = await _roleManager.DeleteAsync(role);
         if (!result.Succeeded)
         {
-            TempData["AdminError"] = "Could not delete the role.";
+            TempData["AdminError"] = "No se pudo eliminar el rol.";
         }
         else
         {

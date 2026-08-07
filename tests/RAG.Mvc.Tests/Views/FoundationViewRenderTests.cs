@@ -159,11 +159,11 @@ public class FoundationViewRenderTests
         var body = await (await client.GetAsync("/")).Content.ReadAsStringAsync();
 
         // Hero.
-        Assert.Contains("Semantic search over your documents", body);
+        Assert.Contains("Búsqueda semántica en sus documentos", body);
         // Three action cards.
-        Assert.Contains("Ask a Question", body);
-        Assert.Contains("Upload a Document", body);
-        Assert.Contains("Documents", body);
+        Assert.Contains("Hacer una pregunta", body);
+        Assert.Contains("Subir un documento", body);
+        Assert.Contains("Documentos", body);
         // Each card links to a real route (Ask GET and the Documents landing).
         Assert.Contains("href=\"/Ask\"", body);
         Assert.Contains("href=\"/Documents\"", body);
@@ -197,8 +197,8 @@ public class FoundationViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Something went wrong", body);
-        Assert.Contains("Request ID", body);
+        Assert.Contains("Se produjo un error", body);
+        Assert.Contains("ID de la solicitud", body);
         Assert.DoesNotContain("Stack Trace", body);
         Assert.DoesNotContain("Development Mode", body);
     }
@@ -215,10 +215,10 @@ public class FoundationViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Log in", body);
+        Assert.Contains("Iniciar sesión", body);
         Assert.Contains("name=\"UserName\"", body);
         Assert.Contains("name=\"Password\"", body);
-        Assert.Contains("Forgot your password?", body);
+        Assert.Contains("¿Olvidó su contraseña?", body);
     }
 
     [Fact]
@@ -231,7 +231,7 @@ public class FoundationViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Forgot your password?", body);
+        Assert.Contains("¿Olvidó su contraseña?", body);
         Assert.Contains("name=\"Email\"", body);
     }
 
@@ -245,7 +245,7 @@ public class FoundationViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Reset your password", body);
+        Assert.Contains("Restablecer su contraseña", body);
         Assert.Contains("name=\"Password\"", body);
         Assert.Contains("name=\"ConfirmPassword\"", body);
     }
@@ -260,6 +260,6 @@ public class FoundationViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Access denied", body);
+        Assert.Contains("Acceso denegado", body);
     }
 }

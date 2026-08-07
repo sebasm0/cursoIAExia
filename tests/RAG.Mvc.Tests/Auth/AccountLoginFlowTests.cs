@@ -84,7 +84,7 @@ public class AccountLoginFlowTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Invalid login attempt", body);
+        Assert.Contains("Intento de inicio de sesi", body);
         Assert.False(AccountTestHelpers.HasAuthCookie(response),
             "Failed login must not issue an authentication cookie.");
     }
@@ -114,7 +114,7 @@ public class AccountLoginFlowTests
 
         Assert.Equal(HttpStatusCode.OK, sixth.StatusCode);
         var body = await sixth.Content.ReadAsStringAsync();
-        Assert.Contains("locked out", body);
+        Assert.Contains("bloqueada temporalmente", body);
         Assert.False(AccountTestHelpers.HasAuthCookie(sixth),
             "Locked-out account must not receive an authentication cookie.");
     }

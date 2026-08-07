@@ -1,6 +1,6 @@
 @model AskViewModel
 @{
-    ViewData["Title"] = "Answer";
+    ViewData["Title"] = "Respuesta";
 }
 
 <div class="py-4">
@@ -14,50 +14,50 @@
                         <path d="M7.002 12a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 5.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995z"/>
                     </svg>
                     <div>
-                        <h1 class="h4 mb-2">Service unavailable</h1>
+                        <h1 class="h4 mb-2">Servicio no disponible</h1>
                         <p class="mb-2">@Model.ErrorMessage</p>
-                        <p class="mb-0 text-muted">Please try again in a few minutes. If the problem persists, check that Ollama and PostgreSQL are running.</p>
+                        <p class="mb-0 text-muted">El servicio no está disponible. Intente de nuevo en unos minutos. Si el problema persiste, verifique que Ollama y PostgreSQL estén en ejecución.</p>
                     </div>
                 </div>
                 <div class="mt-4 d-flex gap-2">
-                    <a asp-action="Index" class="btn btn-primary">Try Again</a>
-                    <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">Back to Home</a>
+                    <a asp-action="Index" class="btn btn-primary">Intentar de nuevo</a>
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">Volver al inicio</a>
                 </div>
             </div>
         </div>
     }
     else if (!string.IsNullOrEmpty(Model.Answer))
     {
-        <h1 class="display-6 mb-4">Answer</h1>
+        <h1 class="display-6 mb-4">Respuesta</h1>
 
         <div class="card mb-3">
-            <div class="card-header fw-semibold">Your question</div>
+            <div class="card-header fw-semibold">Su pregunta</div>
             <div class="card-body">
                 <p class="card-text mb-0">@Model.Query</p>
             </div>
         </div>
 
         <div class="card mb-4">
-            <div class="card-header fw-semibold">Answer</div>
+            <div class="card-header fw-semibold">Respuesta</div>
             <div class="card-body">
                 <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">@Model.Answer</pre>
             </div>
         </div>
 
         <div class="d-flex gap-2">
-            <a asp-action="Index" class="btn btn-outline-primary">Ask another</a>
-            <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">Back to Home</a>
+            <a asp-action="Index" class="btn btn-outline-primary">Hacer otra pregunta</a>
+            <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">Volver al inicio</a>
         </div>
     }
     else
     {
         <div class="card">
             <div class="card-body p-4">
-                <h1 class="h4 mb-2">No answer was generated</h1>
-                <p class="mb-0">The RAG service returned an empty response. Please try your question again or check back later.</p>
+                <h1 class="h4 mb-2">No se generó respuesta alguna</h1>
+                <p class="mb-0">El servicio RAG devolvió una respuesta vacía. Intente con su pregunta de nuevo o consulte más tarde.</p>
                 <div class="mt-4 d-flex gap-2">
-                    <a asp-action="Index" class="btn btn-primary">Try Again</a>
-                    <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">Back to Home</a>
+                    <a asp-action="Index" class="btn btn-primary">Intentar de nuevo</a>
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">Volver al inicio</a>
                 </div>
             </div>
         </div>

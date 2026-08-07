@@ -35,10 +35,10 @@ public class AskViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Ask a Question", body);
+        Assert.Contains("Hacer una pregunta", body);
         Assert.Contains("name=\"Query\"", body);
         // Design-system helper hint (real copy, no placeholder text).
-        Assert.Contains("Answers are generated from your uploaded documents only.", body);
+        Assert.Contains("Las respuestas se generan únicamente a partir de sus documentos subidos.", body);
         Assert.DoesNotContain("lorem", body, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -63,9 +63,9 @@ public class AskViewRenderTests
         // the controller's own message is asserted at unit level in
         // AskControllerTests (ModelState).
         Assert.Contains("input-validation-error", body);
-        Assert.Contains("The Query field is required.", body);
+        Assert.Contains("Por favor, ingrese una pregunta.", body);
         Assert.Contains("name=\"Query\"", body);
-        Assert.Contains("Answers are generated from your uploaded documents only.", body);
+        Assert.Contains("a partir de sus documentos subidos", body);
     }
 
     // ── ASK-10: Answer screen renders question echo + answer + Ask another ──
@@ -83,13 +83,13 @@ public class AskViewRenderTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
         // Question echo.
-        Assert.Contains("Your question", body);
+        Assert.Contains("Su pregunta", body);
         Assert.Contains("What is the capital of France?", body);
         // Generated answer.
-        Assert.Contains("Answer", body);
+        Assert.Contains("Respuesta", body);
         Assert.Contains("Paris", body);
         // ASK-10: "Ask another" returns to the Ask form (no conversation state).
-        Assert.Contains("Ask another", body);
+        Assert.Contains("Hacer otra pregunta", body);
     }
 
     // ── ASK-13: empty answer renders a non-blank fallback ──
@@ -108,12 +108,12 @@ public class AskViewRenderTests
         var body = await response.Content.ReadAsStringAsync();
         // ASK-13: neither ErrorMessage nor Answer is populated — the else
         // branch renders a non-blank fallback instead of an empty page.
-        Assert.Contains("No answer was generated", body);
+        Assert.Contains("No se generó respuesta alguna", body);
         // Retry / back-navigation actions remain available.
-        Assert.Contains("Try Again", body);
-        Assert.Contains("Back to Home", body);
+        Assert.Contains("Intentar de nuevo", body);
+        Assert.Contains("Volver al inicio", body);
         // The fallback must not collide with the error branch.
-        Assert.DoesNotContain("Service unavailable", body);
+        Assert.DoesNotContain("Servicio no disponible", body);
     }
 
     // ── ASK-11: service-unavailable state per design system ──
@@ -130,9 +130,10 @@ public class AskViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Service unavailable", body);
-        Assert.Contains("temporarily unavailable", body);
-        Assert.Contains("Try Again", body);
+        Assert.Contains("Servicio no disponible", body);
+        Assert.Contains("no disponible", body);
+        Assert.Contains("no está disponible. Intente de nuevo en unos minutos", body);
+        Assert.Contains("Intentar de nuevo", body);
         // ASK-4: no stack traces or internal details.
         Assert.DoesNotContain("InvalidOperationException", body);
         Assert.DoesNotContain("Stack Trace", body);

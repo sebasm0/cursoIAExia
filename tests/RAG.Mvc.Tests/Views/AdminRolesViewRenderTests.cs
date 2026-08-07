@@ -71,7 +71,7 @@ public class AdminRolesViewRenderTests
         Assert.Contains("Roles", body);
         Assert.Contains("Admin", body);
         Assert.Contains("Viewer", body);
-        Assert.Contains("Create role", body);
+        Assert.Contains("Crear rol", body);
         Assert.DoesNotContain("lorem", body, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -128,7 +128,7 @@ public class AdminRolesViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Create role", body);
+        Assert.Contains("Crear rol", body);
         Assert.Contains("name=\"roleName\"", body);
     }
 
@@ -153,7 +153,7 @@ public class AdminRolesViewRenderTests
             Assert.Contains(permission, body);
         }
         Assert.Contains("name=\"SelectedPermissions\"", body);
-        Assert.Contains("Save permissions", body);
+        Assert.Contains("Guardar permisos", body);
         Assert.Contains("table-responsive", body);
         Assert.Contains("<table", body);
 

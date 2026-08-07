@@ -8,13 +8,13 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="@Model.ModalId-label">@Model.Title</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body">
                 <p class="mb-0">@Model.Message</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="submit" form="@Model.FormId" class="btn @Model.ConfirmClass">@Model.ConfirmLabel</button>
             </div>
         </div>

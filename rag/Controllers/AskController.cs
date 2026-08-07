@@ -34,7 +34,7 @@ public class AskController : Controller
     {
         if (string.IsNullOrWhiteSpace(model.Query))
         {
-            ModelState.AddModelError(nameof(model.Query), "Please enter a question.");
+            ModelState.AddModelError(nameof(model.Query), "Por favor, ingrese una pregunta.");
             return View("Index", model);
         }
 
@@ -47,7 +47,7 @@ public class AskController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing question: {Query}", model.Query);
-            model.ErrorMessage = "The RAG service is temporarily unavailable. Please try again later.";
+            model.ErrorMessage = "El servicio RAG está temporalmente no disponible. Intente de nuevo más tarde.";
             return View("Result", model);
         }
     }

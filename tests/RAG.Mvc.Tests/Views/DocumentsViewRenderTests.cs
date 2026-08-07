@@ -36,8 +36,8 @@ public class DocumentsViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Manage documents in the RAG system.", body);
-        Assert.Contains("Supported formats: .cs, .md, .pdf", body);
+        Assert.Contains("Gestione los documentos del sistema RAG.", body);
+        Assert.Contains("Formatos admitidos: .cs, .md, .pdf", body);
         // UPLOAD-1: the landing Upload action targets the reachable route.
         Assert.Contains("href=\"/Documents/Upload\"", body);
     }
@@ -54,8 +54,8 @@ public class DocumentsViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Uploaded Documents", body);
-        Assert.Contains("No documents uploaded yet", body);
+        Assert.Contains("Documentos subidos", body);
+        Assert.Contains("no ha subido documentos", body);
     }
 
     // ── UPLOAD-1 / UPLOAD-10: upload form renders per design system ──
@@ -70,11 +70,11 @@ public class DocumentsViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Upload a Document", body);
+        Assert.Contains("Subir un documento", body);
         Assert.Contains("name=\"file\"", body);
         Assert.Contains("accept=\".cs,.md,.pdf\"", body);
-        Assert.Contains("Accepted formats: .cs (C#), .md (Markdown), .pdf (PDF). Maximum size: 10 MB.", body);
-        Assert.Contains("Files are parsed, chunked and indexed for semantic search.", body);
+        Assert.Contains("Formatos admitidos: .cs (C#), .md (Markdown), .pdf (PDF). Tamaño máximo: 10 MB.", body);
+        Assert.Contains("Los archivos se procesan, se dividen en bloques y se indexan para la búsqueda semántica.", body);
         Assert.DoesNotContain("lorem", body, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -95,7 +95,7 @@ public class DocumentsViewRenderTests
         // The form re-renders with the server-side error listing the
         // supported types, and no ingestion pipeline runs.
         Assert.Contains("name=\"file\"", body);
-        Assert.Contains("Unsupported file type", body);
+        Assert.Contains("Tipo de archivo no admitido", body);
         Assert.Contains(".cs, .md, .pdf", body);
         // UPLOAD-12: the server-side error renders bound to the file field
         // (field-validation-error span with data-valmsg-for="file"), so it is
@@ -119,13 +119,13 @@ public class DocumentsViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("success", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Subido correctamente", body);
         Assert.Contains("Hello.cs", body);
         Assert.Contains("text/plain", body);
         // UPLOAD-5/UPLOAD-6 data preserved: size + timestamp labels shown.
-        Assert.Contains("File Size", body);
-        Assert.Contains("Ingested At", body);
-        Assert.Contains("This document is now searchable through the Ask interface.", body);
+        Assert.Contains("Tamaño del archivo", body);
+        Assert.Contains("Ingresado", body);
+        Assert.Contains("Este documento ya es accesible mediante el buscador.", body);
     }
 
     // ── FIX-1: the per-row Delete control is gated on documents.delete ──
@@ -141,7 +141,7 @@ public class DocumentsViewRenderTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("hello.cs", body);
-        Assert.DoesNotContain("Delete", body);
+        Assert.DoesNotContain("Eliminar", body);
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public class DocumentsViewRenderTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("hello.cs", body);
-        Assert.Contains("return confirm('Delete this document and all its indexed chunks? This cannot be undone.');", body);
+        Assert.Contains("return confirm('¿Eliminar este documento y todos sus bloques indexados? Esta acción no se puede deshacer.');", body);
     }
 
     // ── ListDocumentsAsync throws: distinct error state, no empty-state text ──
@@ -170,8 +170,8 @@ public class DocumentsViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("The document list could not be loaded. Try again later.", body);
-        Assert.DoesNotContain("No documents uploaded yet", body);
+        Assert.Contains("No se pudo cargar la lista de documentos. Inténtelo más tarde.", body);
+        Assert.DoesNotContain("Aún no ha subido documentos", body);
     }
 
     // ── UPLOAD-10: error view lists supported types, no stack trace ──
@@ -189,8 +189,8 @@ public class DocumentsViewRenderTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Upload failed", body);
-        Assert.Contains("Check that the file uses a supported format: .cs, .md, or .pdf.", body);
+        Assert.Contains("Error al subir", body);
+        Assert.Contains("Verifique que el archivo use un formato admitido: .cs, .md o .pdf.", body);
         Assert.DoesNotContain("Stack Trace", body);
         Assert.DoesNotContain("NotSupportedException", body);
     }

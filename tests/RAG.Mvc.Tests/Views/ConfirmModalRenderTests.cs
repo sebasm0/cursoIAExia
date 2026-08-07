@@ -53,7 +53,7 @@ public class ConfirmModalRenderTests
         // The only submit wired to the delete form is the modal Confirm button.
         Assert.Contains($"type=\"submit\" form=\"delete-user-{bobId}\"", body);
         // Real copy, placeholder-neutral.
-        Assert.Contains("This action cannot be undone.", body);
+        Assert.Contains("se puede deshacer", body);
     }
 
     [Fact]
@@ -79,6 +79,6 @@ public class ConfirmModalRenderTests
         Assert.Contains("data-bs-target=\"#confirmModal-", body);
         Assert.Contains("data-bs-dismiss=\"modal\"", body);
         Assert.Contains("type=\"submit\" form=\"delete-role-", body);
-        Assert.Contains("This action cannot be undone.", body);
+        Assert.Contains("se puede deshacer", body);
     }
 }

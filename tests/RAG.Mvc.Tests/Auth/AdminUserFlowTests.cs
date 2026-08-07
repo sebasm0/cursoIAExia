@@ -70,7 +70,7 @@ public class AdminUserFlowTests
 
         var denied = await client.GetAsync(response.Headers.Location!.AbsolutePath);
         var body = await denied.Content.ReadAsStringAsync();
-        Assert.Contains("Access denied", body);
+        Assert.Contains("Acceso denegado", body);
     }
 
     // ── ADMIN-1: self-delete guard ──
@@ -90,7 +90,7 @@ public class AdminUserFlowTests
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         var index = await client.GetAsync(response.Headers.Location!.OriginalString);
         var body = await index.Content.ReadAsStringAsync();
-        Assert.Contains("cannot delete your own", body);
+        Assert.Contains("No puede eliminar su propia cuenta", body);
         Assert.True(await factory.UserExistsAsync("admin"), "The admin account must survive the self-delete attempt.");
     }
 
@@ -139,9 +139,31 @@ public class AdminUserFlowTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("already taken", body);
+        Assert.Contains("en uso", body);
         Assert.False(await factory.UserExistsAsync("bob"), "Duplicate email must not create an account.");
         Assert.Equal(countBefore, await factory.CountUsersAsync());
+    }
+
+    [Fact]
+    public async Task AdminUserCreate_Post_ShortPassword_ShowsLocalizedValidationError()
+    {
+        await using var factory = await CreateAdminFactoryAsync();
+        using var client = CreateClient(factory);
+        await SignInAsync(factory, client, "admin");
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Admin/Users/Create");
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Admin/Users/Create", token,
+            ("UserName", "dave"),
+            ("Email", "dave@example.com"),
+            ("Password", "Abcdef!")));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        // Identity password policy (RequiredLength=8) surfaces through
+        // TranslateIdentityError as Spanish, not the raw English description.
+        Assert.Contains("al menos 8 caracteres", body);
+        Assert.False(await factory.UserExistsAsync("dave"), "Short-password user must not be created.");
     }
 
     // ── ADMIN-3: User edit and role assignment (admin.users) ──
@@ -183,7 +205,7 @@ public class AdminUserFlowTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("admin permission", body);
+        Assert.Contains("permiso de administra", body);
         Assert.Contains("Admin", await factory.GetUserRolesAsync("admin"));
     }
 }

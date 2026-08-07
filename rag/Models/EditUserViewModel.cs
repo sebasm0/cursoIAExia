@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace rag.Models;
 
 /// <summary>
@@ -8,8 +10,12 @@ public class EditUserViewModel
 {
     public Guid UserId { get; set; }
 
+    [Display(Name = "Nombre de usuario")]
     public string UserName { get; set; } = string.Empty;
 
+    [Required(ErrorMessage = "El campo Correo electrónico es obligatorio.")]
+    [EmailAddress(ErrorMessage = "El campo debe ser una dirección de correo electrónico válida.")]
+    [Display(Name = "Correo electrónico")]
     public string Email { get; set; } = string.Empty;
 
     /// <summary>

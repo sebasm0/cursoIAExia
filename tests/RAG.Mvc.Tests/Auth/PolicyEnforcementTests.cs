@@ -80,7 +80,7 @@ public class PolicyEnforcementTests
 
         var denied = await client.GetAsync(response.Headers.Location!.AbsolutePath);
         var body = await denied.Content.ReadAsStringAsync();
-        Assert.Contains("Access denied", body);
+        Assert.Contains("Acceso denegado", body);
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public class PolicyEnforcementTests
 
         var denied = await client.GetAsync(response.Headers.Location!.AbsolutePath);
         var body = await denied.Content.ReadAsStringAsync();
-        Assert.Contains("Access denied", body);
+        Assert.Contains("Acceso denegado", body);
     }
 
     [Fact]

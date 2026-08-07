@@ -1,6 +1,6 @@
 @model UploadViewModel
 @{
-    ViewData["Title"] = Model.ErrorMessage != null ? "Upload failed" : "Upload successful";
+    ViewData["Title"] = Model.ErrorMessage != null ? "Error al subir" : "Subido correctamente";
 }
 
 <div class="py-4">
@@ -14,34 +14,34 @@
                         <path d="M7.002 12a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 5.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995z"/>
                     </svg>
                     <div>
-                        <h1 class="h4 mb-2">Upload failed</h1>
+                        <h1 class="h4 mb-2">Error al subir</h1>
                         <p class="mb-2">@Model.ErrorMessage</p>
-                        <p class="mb-0 text-muted">Check that the file uses a supported format: .cs, .md, or .pdf.</p>
+                        <p class="mb-0 text-muted">Verifique que el archivo use un formato admitido: .cs, .md o .pdf.</p>
                     </div>
                 </div>
                 <div class="mt-4 d-flex gap-2">
-                    <a asp-action="Upload" class="btn btn-primary">Try Again</a>
-                    <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">Back to Home</a>
+                    <a asp-action="Upload" class="btn btn-primary">Intentar de nuevo</a>
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">Volver al inicio</a>
                 </div>
             </div>
         </div>
     }
     else
     {
-        <h1 class="display-6 mb-2">Upload successful</h1>
-        <p class="lead mb-4">This document is now searchable through the Ask interface.</p>
+        <h1 class="display-6 mb-2">Subido correctamente</h1>
+        <p class="lead mb-4">Este documento ya es accesible mediante el buscador.</p>
 
         <div class="card mb-4">
-            <div class="card-header fw-semibold">Document details</div>
+            <div class="card-header fw-semibold">Detalles del documento</div>
             <div class="card-body">
                 <dl class="row mb-0">
-                    <dt class="col-sm-3">File Name</dt>
+                    <dt class="col-sm-3">Archivo</dt>
                     <dd class="col-sm-9">@Model.FileName</dd>
 
-                    <dt class="col-sm-3">Content Type</dt>
+                    <dt class="col-sm-3">Tipo de contenido</dt>
                     <dd class="col-sm-9">@Model.ContentType</dd>
 
-                    <dt class="col-sm-3">File Size</dt>
+                    <dt class="col-sm-3">Tamaño del archivo</dt>
                     <dd class="col-sm-9">
                         @if (Model.FileSize >= 1024 * 1024)
                         {
@@ -57,16 +57,16 @@
                         }
                     </dd>
 
-                    <dt class="col-sm-3">Ingested At</dt>
+                    <dt class="col-sm-3">Ingresado</dt>
                     <dd class="col-sm-9">@Model.Timestamp.ToString("yyyy-MM-dd HH:mm:ss UTC")</dd>
                 </dl>
             </div>
         </div>
 
         <div class="d-flex flex-wrap gap-2">
-            <a asp-action="Upload" class="btn btn-outline-primary">Upload another document</a>
-            <a asp-controller="Ask" asp-action="Index" class="btn btn-outline-primary">Ask a question</a>
-            <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">Back to Home</a>
+            <a asp-action="Upload" class="btn btn-outline-primary">Subir otro documento</a>
+            <a asp-controller="Ask" asp-action="Index" class="btn btn-outline-primary">Hacer una pregunta</a>
+            <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">Volver al inicio</a>
         </div>
     }
 </div>

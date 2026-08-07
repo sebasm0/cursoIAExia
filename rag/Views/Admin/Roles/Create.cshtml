@@ -1,24 +1,24 @@
 @{
-    ViewData["Title"] = "Create role";
+    ViewData["Title"] = "Crear rol";
 }
 
 <div class="row justify-content-center py-4">
     <div class="col-12 col-md-8 col-lg-6">
         <div class="card form-card">
             <div class="card-body p-4 p-md-5">
-                <h1 class="h3 mb-1">Create role</h1>
-                <p class="text-muted mb-4">Add a new role, then grant it permissions from the role list.</p>
+                <h1 class="h3 mb-1">Crear rol</h1>
+                <p class="text-muted mb-4">Agregue un rol nuevo y luego asígnele permisos desde la lista de roles.</p>
 
                 <form asp-action="RolesCreate" method="post">
                     <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
                     <div class="mb-4">
-                        <label for="roleName" class="form-label">Role name</label>
+                        <label for="roleName" class="form-label">Nombre del rol</label>
                         <input id="roleName" name="roleName" class="form-control" autocomplete="off" />
                     </div>
 
-                    <button type="submit" class="btn btn-primary">Create role</button>
-                    <a asp-action="Roles" class="btn btn-link">Back to list</a>
+                    <button type="submit" class="btn btn-primary">Crear rol</button>
+                    <a asp-action="Roles" class="btn btn-link">Volver a la lista</a>
                 </form>
             </div>
         </div>

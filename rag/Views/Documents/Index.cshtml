@@ -1,11 +1,11 @@
 @model IReadOnlyList<RAG.Domain.Entities.Document>
 @{
-    ViewData["Title"] = "Documents";
+    ViewData["Title"] = "Documentos";
 }
 
 <div class="py-4">
-    <h1 class="display-6 mb-2">Documents</h1>
-    <p class="lead mb-4">Manage documents in the RAG system. Upload new files to make them searchable through the Ask interface.</p>
+    <h1 class="display-6 mb-2">Documentos</h1>
+    <p class="lead mb-4">Gestione los documentos del sistema RAG. Suba archivos nuevos para que estén disponibles mediante el buscador.</p>
 
     @if (TempData["Message"] is string message)
     {
@@ -25,13 +25,13 @@
                             <path d="M8.5 11.5a.5.5 0 0 1-1 0V7.707L6.354 8.854a.5.5 0 1 1-.708-.708l2-2a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 7.707V11.5z"/>
                             <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/>
                         </svg>
-                        Upload a Document
+                        Subir un documento
                     </h2>
                     <p class="card-text text-muted">
-                        Add a new document to the knowledge base. The system will parse, chunk and index it for semantic search.
+                        Agregue un documento nuevo a la base de conocimiento. El sistema lo procesará, a partir de él creará fragmentos e índices para la búsqueda semántica.
                     </p>
-                    <p class="card-text text-muted small mb-3">Supported formats: .cs, .md, .pdf</p>
-                    <a asp-action="Upload" class="btn btn-primary">Upload</a>
+                    <p class="card-text text-muted small mb-3">Formatos admitidos: .cs, .md, .pdf</p>
+                    <a asp-action="Upload" class="btn btn-primary">Subir</a>
                 </div>
             </div>
         </div>
@@ -39,7 +39,7 @@
         <div class="col-12">
             <div class="card action-card">
                 <div class="card-header">
-                    <h2 class="h5 mb-0">Uploaded Documents</h2>
+                    <h2 class="h5 mb-0">Documentos subidos</h2>
                 </div>
                 <div class="card-body p-0">
                     @if (Model is { Count: > 0 })
@@ -47,11 +47,11 @@
                         <table class="table table-hover align-middle mb-0">
                             <thead>
                                 <tr>
-                                    <th scope="col">File Name</th>
-                                    <th scope="col">Type</th>
-                                    <th scope="col" class="text-end">Size</th>
-                                    <th scope="col">Uploaded At</th>
-                                    <th scope="col" class="text-end">Actions</th>
+                                    <th scope="col">Archivo</th>
+                                    <th scope="col">Tipo</th>
+                                    <th scope="col" class="text-end">Tamaño</th>
+                                    <th scope="col">Subido el</th>
+                                    <th scope="col" class="text-end">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -63,14 +63,14 @@
                                         <td class="text-end text-nowrap">@FormatSize(doc.Size)</td>
                                         <td class="text-nowrap">@doc.CreatedAt.ToLocalTime().ToString("g")</td>
                                         <td class="text-end text-nowrap">
-                                            <a asp-action="View" asp-route-id="@doc.Id" class="btn btn-sm btn-outline-secondary">View</a>
+                                            <a asp-action="View" asp-route-id="@doc.Id" class="btn btn-sm btn-outline-secondary">Ver</a>
                                             @if (ViewData["CanDeleteDocuments"] is true)
                                             {
                                                 <form asp-action="Delete" asp-route-id="@doc.Id" method="post"
-                                                      onsubmit="return confirm('Delete this document and all its indexed chunks? This cannot be undone.');">
+                                                      onsubmit="return confirm('¿Eliminar este documento y todos sus bloques indexados? Esta acción no se puede deshacer.');">
                                                     @Html.AntiForgeryToken()
                                                     <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                        Delete
+                                                        Eliminar
                                                     </button>
                                                 </form>
                                             }
@@ -82,11 +82,11 @@
                     }
                     else if (ViewData["LoadFailed"] is not true)
                     {
-                        <p class="text-muted m-0 p-4">No documents uploaded yet</p>
+                        <p class="text-muted m-0 p-4">Aún no ha subido documentos</p>
                     }
                     else
                     {
-                        <p class="text-muted m-0 p-4">The document list could not be loaded. Try again later.</p>
+                        <p class="text-muted m-0 p-4">No se pudo cargar la lista de documentos. Inténtelo más tarde.</p>
                     }
                 </div>
             </div>

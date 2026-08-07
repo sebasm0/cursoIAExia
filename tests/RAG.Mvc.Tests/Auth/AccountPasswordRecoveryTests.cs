@@ -36,12 +36,12 @@ public class AccountPasswordRecoveryTests
         // Generic confirmation shown regardless of account existence (AUTH-4).
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("reset link has been sent", body);
+        Assert.Contains("se ha enviado un enlace de restablecimiento", body);
 
         // The console email stub was asked to deliver a reset link with the token.
         var email = Assert.Single(factory.SentEmails);
         Assert.Equal("alice@example.com", email.Email);
-        Assert.Contains("Password reset", email.Subject);
+        Assert.Contains("Restablecimiento de contraseña", email.Subject);
         Assert.Contains($"/Account/ResetPassword?userId={user.Id}", email.HtmlBody);
         Assert.Contains("token=", email.HtmlBody);
     }
@@ -60,7 +60,7 @@ public class AccountPasswordRecoveryTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("reset link has been sent", body);
+        Assert.Contains("se ha enviado un enlace de restablecimiento", body);
         Assert.Empty(factory.SentEmails);
     }
 
@@ -79,7 +79,7 @@ public class AccountPasswordRecoveryTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Reset your password", body);
+        Assert.Contains("Restablecer su contraseña", body);
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public class AccountPasswordRecoveryTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("has been reset", body);
+        Assert.Contains("ha sido restablecida", body);
 
         // AUTH-5: the user can now sign in with the NEW password.
         var loginToken = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Account/Login");
@@ -128,7 +128,7 @@ public class AccountPasswordRecoveryTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Invalid or expired password reset token", body);
+        Assert.Contains("Token de restablecimiento", body);
 
         // AUTH-5: the existing password must remain valid.
         var loginToken = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Account/Login");

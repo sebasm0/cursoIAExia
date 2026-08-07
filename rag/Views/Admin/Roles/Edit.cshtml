@@ -1,13 +1,13 @@
 @model RolePermissionsViewModel
 @{
-    ViewData["Title"] = $"Permissions — {Model.RoleName}";
+    ViewData["Title"] = $"Permisos — {Model.RoleName}";
 }
 
 <div class="py-4">
     <div class="mb-4">
-        <h1 class="display-6 mb-1">Permissions</h1>
+        <h1 class="display-6 mb-1">Permisos</h1>
         <p class="text-muted mb-0">
-            Role: <strong>@Model.RoleName</strong> — grant or revoke capabilities for this role.
+            Rol: <strong>@Model.RoleName</strong> — conceda o revoque capacidades para este rol.
         </p>
     </div>
 
@@ -15,14 +15,14 @@
         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
         <div class="card mb-4">
-            <div class="card-header">Permission matrix</div>
+            <div class="card-header">Matriz de permisos</div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead>
                             <tr>
-                                <th scope="col">Permission</th>
-                                <th scope="col" class="text-end">Granted</th>
+                                <th scope="col">Permiso</th>
+                                <th scope="col" class="text-end">Otorgado</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -45,7 +45,7 @@
             </div>
         </div>
 
-        <button type="submit" class="btn btn-primary">Save permissions</button>
-        <a asp-action="Roles" class="btn btn-link">Back to list</a>
+        <button type="submit" class="btn btn-primary">Guardar permisos</button>
+        <a asp-action="Roles" class="btn btn-link">Volver a la lista</a>
     </form>
 </div>

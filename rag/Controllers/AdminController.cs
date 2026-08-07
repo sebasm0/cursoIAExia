@@ -153,7 +153,7 @@ public partial class AdminController : Controller
             {
                 ModelState.AddModelError(
                     string.Empty,
-                    "You cannot remove your own last admin permission (admin lockout guard).");
+                    "No puede eliminar su propio último permiso de administración (protección contra bloqueo).");
                 return View("Users/Edit", model);
             }
         }
@@ -212,14 +212,14 @@ public partial class AdminController : Controller
 
         if (Guid.TryParse(_userManager.GetUserId(User), out var selfId) && selfId == user.Id)
         {
-            TempData["AdminError"] = "You cannot delete your own account.";
+            TempData["AdminError"] = "No puede eliminar su propia cuenta.";
             return RedirectToAction(nameof(Users));
         }
 
         var result = await _userManager.DeleteAsync(user);
         if (!result.Succeeded)
         {
-            TempData["AdminError"] = "Could not delete the user.";
+            TempData["AdminError"] = "No se pudo eliminar el usuario.";
         }
         else
         {
@@ -264,7 +264,46 @@ public partial class AdminController : Controller
     {
         foreach (var error in result.Errors)
         {
-            ModelState.AddModelError(string.Empty, error.Description);
+            ModelState.AddModelError(string.Empty, TranslateIdentityError(error));
         }
+    }
+
+    private static string TranslateIdentityError(IdentityError error)
+    {
+        var d = error.Description;
+
+        const string usernamePrefix = "Username '";
+        const string emailPrefix = "Email '";
+        const string duplicateSuffix = "' is already taken.";
+
+        if (d.StartsWith(usernamePrefix, StringComparison.Ordinal) && d.EndsWith(duplicateSuffix, StringComparison.Ordinal))
+        {
+            var name = d.Substring(usernamePrefix.Length, d.Length - usernamePrefix.Length - duplicateSuffix.Length);
+            return $"El nombre de usuario '{name}' ya está en uso.";
+        }
+
+        if (d.StartsWith(emailPrefix, StringComparison.Ordinal) && d.EndsWith(duplicateSuffix, StringComparison.Ordinal))
+        {
+            var email = d.Substring(emailPrefix.Length, d.Length - emailPrefix.Length - duplicateSuffix.Length);
+            return $"La dirección de correo '{email}' ya está en uso.";
+        }
+
+        // "Passwords must be as long as {RequiredLength} characters." (exact length is
+        // configured by the app's password options, so match by prefix and keep the number).
+        const string lengthPrefix = "Passwords must be at least ";
+        if (d.StartsWith(lengthPrefix, StringComparison.Ordinal) && d.EndsWith(" characters.", StringComparison.Ordinal))
+        {
+            var requiredLength = d.Substring(lengthPrefix.Length, d.Length - lengthPrefix.Length - " characters.".Length);
+            return $"Las contraseñas deben tener al menos {requiredLength} caracteres.";
+        }
+
+        return d switch
+        {
+            "Passwords must have at least one digit ('0'-'9')." => "Las contraseñas deben tener al menos un dígito.",
+            "Passwords must have at least one lowercase ('a'-'z')." => "Las contraseñas deben tener al menos una minúscula.",
+            "Passwords must have at least one uppercase ('A'-'Z')." => "Las contraseñas deben tener al menos una mayúscula.",
+            "Passwords must have at least one non alphanumeric character." => "Las contraseñas deben tener al menos un carácter especial.",
+            _ => d,
+        };
     }
 }
