@@ -647,6 +647,36 @@ body > footer {
   --bs-table-accent-bg: var(--rage-surface);
 }
 
+/* Settings (read-only config) rows. */
+.settings-list {
+  border-top: 1px solid var(--bs-border-color);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.settings-label {
+  color: var(--rag-text-secondary);
+  font-weight: 500;
+}
+
+.settings-value {
+  color: var(--rag-text-primary);
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+
+.settings-row code {
+  color: var(--bs-link-color);
+}
+
 .doc-name {
   display: flex;
   align-items: center;
@@ -1131,4 +1161,217 @@ textarea.form-control::placeholder {
   .dashboard-page {
     padding: 1.5rem 1rem 3rem;
   }
+}
+
+/* ── Identity: profile dropdown + chat author avatars ──────────────────────
+   Account widget at the top of the sidebar becomes an interactive dropdown
+   (profile header + logout). Chat messages gain author markers: the user's
+   grayscale initials avatar on the right, the assistant's microphone icon on
+   the left. Reuses existing .avatar/.msg-bubble surfaces and the app tokens. */
+
+/* Dropdown wrapper: position anchor for the absolutely-positioned menu. */
+.sidebar-user {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.profile-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.5rem 0.25rem;
+  border: 0;
+  border-radius: var(--bs-border-radius-lg);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.profile-trigger:hover,
+.profile-trigger:focus-visible {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.profile-trigger-text {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* Grayscale "avatar" circle: initials in a neutral gray, desaturated to read
+   as a profile photo placeholder per the reference shot. Compact 32px trigger. */
+.avatar-gray {
+  background: linear-gradient(135deg, #5b6470, #3a3f46);
+  color: #d2d6da;
+  filter: grayscale(100%);
+}
+
+.profile-trigger .avatar {
+  width: 2rem;
+  height: 2rem;
+}
+
+/* Single-row identity: white userName inline next to the avatar; the role
+   subtitle is hidden on the trigger and kept only inside the dropdown. */
+.profile-trigger .sidebar-user-name {
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.profile-trigger .sidebar-user-role {
+  display: none;
+}
+
+.profile-chevron {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  color: var(--bs-secondary-color);
+  transition: transform 0.2s ease;
+}
+
+.profile-trigger[aria-expanded="true"] .profile-chevron {
+  transform: rotate(180deg);
+}
+
+/* The dropdown menu: dark glass, floats over the sidebar content. */
+.profile-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  right: 0;
+  z-index: 1040;
+  min-width: 12rem;
+  padding: 0.35rem;
+  border: 1px solid var(--rag-glass-border);
+  border-radius: var(--bs-border-radius-lg);
+  background: var(--rag-chat-surface, #1a1d23);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.45);
+}
+
+.profile-menu[hidden] {
+  display: none;
+}
+
+.profile-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.profile-menu-text {
+  min-width: 0;
+}
+
+.profile-menu-name {
+  display: block;
+  font-weight: 600;
+  color: var(--rag-text-primary);
+  line-height: 1.2;
+}
+
+.profile-menu-role {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--bs-secondary-color);
+}
+
+.profile-menu form {
+  margin: 0;
+}
+
+.profile-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 0;
+  border-radius: var(--bs-border-radius);
+  background: transparent;
+  color: var(--rag-text-primary);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-menu-logout {
+  color: #f87171;
+}
+
+.profile-menu-item:hover,
+.profile-menu-item:focus-visible {
+  background: rgba(var(--bs-primary-rgb), 0.10);
+  color: var(--bs-primary);
+}
+
+.profile-menu-logout:hover,
+.profile-menu-logout:focus-visible {
+  background: rgba(220, 38, 38, 0.10);
+  color: #f87171;
+}
+
+/* ── Chat author markers ─────────────────────────────────────────────────────
+   Each message becomes a flex row: the blue user bubble gains a small
+   grayscale initials avatar on the right; the assistant gains a microphone
+   icon on the left. Existing .msg-user/.msg-assistant bubbles remain the
+   message surface. */
+
+.msg-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  max-width: 100%;
+}
+
+.msg-row-user {
+  justify-content: flex-end;
+}
+
+.msg-row-assistant {
+  justify-content: flex-start;
+}
+
+.msg-row .msg-bubble {
+  max-width: 85%;
+}
+
+.msg-author-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #5b6470, #3a3f46);
+  color: #d2d6da;
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  filter: grayscale(1%);
+}
+
+.msg-assistant-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: rgba(var(--bs-primary-rgb), 0.12);
+  color: var(--bs-primary);
 }

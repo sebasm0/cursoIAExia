@@ -1,6 +1,62 @@
 ﻿@{
     ViewData["Title"] = "Política de privacidad";
 }
-<h1>@ViewData["Title"]</h1>
+<div class="docs-layout">
+    <section class="docs-center">
+        <nav aria-label="Ruta de navegación" class="breadcrumb-rag">
+            <a asp-controller="Home" asp-action="Index">Home</a>
+            <span class="separator" aria-hidden="true">/</span>
+            <span class="text-body">Política de privacidad</span>
+        </nav>
 
-<p>Utilice esta página para detallar la política de privacidad de su sitio.</p>
+        <div class="card docs-surface">
+            <div class="card-header">
+                <h1 class="h4 mb-0">@ViewData["Title"]</h1>
+                <p class="small text-muted mb-0">Última actualización: 6 de agosto de 2026</p>
+            </div>
+
+            <div class="card-body">
+                <h2 class="h6 text-white mt-0 mb-2">1. Qué hace RAG EXIA</h2>
+                <p class="small text-secondary">
+                    RAG EXIA es un sistema de consulta sobre documentos (Retrieval-Augmented Generation).
+                    Permite subir archivos, indexarlos y hacer preguntas sobre su contenido. Las respuestas
+                    se generan a partir de los documentos que usted ha subido y indexado.
+                </p>
+
+                <h2 class="h6 text-white mt-4 mb-2">2. Datos que se recopilan</h2>
+                <ul class="small text-secondary">
+                    <li><strong class="text-white">Cuenta de usuario:</strong> nombre de usuario y contraseña (almacenada de forma segura y con hash) para la autenticación.</li>
+                    <li><strong class="text-white">Documentos:</strong> los archivos que usted sube se almacenan e indexan para permitir las consultas.</li>
+                    <li><strong class="text-white">Consultas:</strong> las preguntas que usted formula se registran únicamente para generar las respuestas.</li>
+                    <li><strong class="text-white">Registros técnicos:</strong> logs de error y de actividad del servidor con fines de operación y diagnóstico.</li>
+                </ul>
+
+                <h2 class="h6 text-white mt-4 mb-2">3. Almacenamiento y procesamiento</h2>
+                <p class="small text-secondary">
+                    Todo el procesamiento se realiza de forma local. La indexación, los embeddings y la generación
+                    de respuestas se ejecutan en su propia infraestructura mediante Ollama y PostgreSQL. Sus
+                    documentos no se envían a servicios externos de terceros.
+                </p>
+
+                <h2 class="h6 text-white mt-4 mb-2">4. Seguridad</h2>
+                <p class="small text-secondary">
+                    Las contraseñas se almacenan con hash y las sesiones se protegen mediante cookies de
+                    autenticación. El acceso a la administración está restringido a los usuarios con los permisos
+                    correspondientes.
+                </p>
+
+                <h2 class="h6 text-white mt-4 mb-2">5. Retención y baja</h2>
+                <p class="small text-secondary">
+                    Puede eliminar los documentos subidos en cualquier momento desde el gestor de documentos.
+                    El cierre de una cuenta elimina el acceso, aunque los datos técnicos de operación pueden
+                    conservarse en los registros del sistema conforme a las políticas de la organización.
+                </p>
+
+                <h2 class="h6 text-white mt-4 mb-2">6. Contacto</h2>
+                <p class="small text-secondary mb-0">
+                    Para consultas sobre esta política o sobre sus datos, contáctese con el administrador del sistema.
+                </p>
+            </div>
+        </div>
+    </section>
+</div>

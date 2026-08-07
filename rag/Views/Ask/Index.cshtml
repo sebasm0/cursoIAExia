@@ -1,6 +1,11 @@
 @model AskViewModel
 @{
     ViewData["Title"] = "Preguntar";
+    string? initials = null;
+    if (User.Identity!.IsAuthenticated && !string.IsNullOrWhiteSpace(User.Identity.Name))
+    {
+        initials = string.Concat(User.Identity.Name.Split(' ').Take(2).Select(p => p.Length > 0 ? p[0] : ' '));
+    }
 }
 
 <div class="chat-panel chat-standalone">
@@ -29,8 +34,19 @@
         }
         else if (!string.IsNullOrEmpty(Model.Answer))
         {
-            <div class="msg-bubble msg-user">@Model.Query</div>
-            <div class="msg-bubble msg-assistant">@Model.Answer</div>
+            <div class="msg-row msg-row-user">
+                <div class="msg-bubble msg-user">@Model.Query</div>
+                <span class="msg-author-avatar" aria-hidden="true">@initials</span>
+            </div>
+            <div class="msg-row msg-row-assistant">
+                <span class="msg-assistant-icon" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h6a1.5 1.5 0 0 1 1.5 1.5v3A1.5 1.5 0 0 1 11 11H5a1.5 1.5 0 0 1-1.5-1.5z"/>
+                        <path d="M8 10a2 2 0 0 1-2-2V3a2 2 0 1 1 4 0v5a2 2 0 0 1-2 2zM3 13.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5z"/>
+                    </svg>
+                </span>
+                <div class="msg-bubble msg-assistant">@Model.Answer</div>
+            </div>
         }
         else
         {

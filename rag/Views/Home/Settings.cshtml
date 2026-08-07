@@ -1,0 +1,47 @@
+@model rag.Models.SettingsViewModel
+@{
+    ViewData["Title"] = "Ajustes";
+}
+
+<div class="docs-layout">
+    <section class="docs-center">
+        <nav aria-label="Ruta de navegación" class="breadcrumb-rag">
+            <a asp-controller="Home" asp-action="Index">Home</a>
+            <span class="separator" aria-hidden="true">/</span>
+            <span class="text-body">Ajustes</span>
+        </nav>
+
+        <div class="card docs-surface">
+            <div class="card-header d-flex flex-column gap-1">
+                <h1 class="h4 mb-0">Configuración del sistema</h1>
+                <p class="small text-muted mb-0">
+                    Configuración activa del servicio RAG. Estos valores no son editables aquí;
+                    se modifican en el archivo <code>appsettings.json</code>.
+                </p>
+            </div>
+
+            <div class="settings-list">
+                <div class="settings-row">
+                    <span class="settings-label">Proveedor de IA</span>
+                    <span class="settings-value">@Model.Provider</span>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-label">URL de Ollama</span>
+                    <span class="settings-value">@Model.OllamaBaseUrl</span>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-label">Modelo de chat</span>
+                    <span class="settings-value">@Model.ChatModel</span>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-label">Modelo de embeddings</span>
+                    <span class="settings-value">@Model.EmbeddingModel</span>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-label">Tamaño máximo de archivo</span>
+                    <span class="settings-value">@Model.MaxFileSizeHumanReadable</span>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>

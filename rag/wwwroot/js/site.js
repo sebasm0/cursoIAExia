@@ -192,3 +192,50 @@ toggle.addEventListener('click', function () {
     });
   });
 })();
+
+// User profile dropdown in the sidebar account widget. Clicking the trigger
+// toggles the menu; clicking outside or pressing Escape closes it. Menu and
+// trigger stay unlinked until they are both present (no-op otherwise).
+(function () {
+  'use strict';
+
+  var root = document.querySelector('[data-profile-menu]');
+  if (!root) {
+    return;
+  }
+
+  var trigger = root.querySelector('.profile-trigger');
+  var menu = root.querySelector('.profile-menu');
+  if (!trigger || !menu) {
+    return;
+  }
+
+  var focusables = Array.prototype.slice.call(
+    menu.querySelectorAll('button, a[href], input, select, textarea'));
+
+  function setOpen(open) {
+    menu.hidden = !open;
+    trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open && focusables.length) {
+      focusables[0].focus();
+    }
+  }
+
+  trigger.addEventListener('click', function (e) {
+    e.stopPropagation();
+    setOpen(menu.hidden);
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!menu.hidden && !root.contains(e.target)) {
+      setOpen(false);
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !menu.hidden) {
+      setOpen(false);
+      trigger.focus();
+    }
+  });
+})();
