@@ -58,6 +58,10 @@
             <div class="card-body">
                 <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">@Model.Answer</pre>
             </div>
+            @if (!string.IsNullOrEmpty(Model.UsedAssistant))
+            {
+                <div class="card-footer text-muted small">Generado por @Model.UsedAssistant</div>
+            }
         </div>
 
         <div class="d-flex gap-2">

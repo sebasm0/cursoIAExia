@@ -1,4 +1,5 @@
 using RAG.Application;
+using RAG.Application.Services;
 using RAG.Infrastructure;
 using RAG.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,14 @@ switch (aiProvider)
             new OllamaChatClient(ollamaBaseUrl, chatModel));
         builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
             new OllamaEmbeddingGenerator(ollamaBaseUrl, embeddingModel));
+
+        // Assistant catalog (design D1, ASEL-1): config-driven allow-list from
+        // AI:Ollama:Assistants; absent/empty config falls back to a single
+        // default assistant derived from the chat model (backward compatible).
+        var assistants = builder.Configuration
+            .GetSection("AI:Ollama:Assistants")
+            .Get<AssistantDefinition[]>() ?? [];
+        builder.Services.AddSingleton(new AssistantCatalog(chatModel, assistants));
         break;
 
     default:

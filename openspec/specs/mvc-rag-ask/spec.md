@@ -9,7 +9,7 @@ Web form for querying the RAG system. Users type a question and receive an AI-ge
 | ID | Requirement | Strength |
 |----|-------------|----------|
 | ASK-1 | Render a GET form with a text input for the question | MUST |
-| ASK-2 | POST handler calls `RagService.AskAsync(query, topKRetrieve, topKRank)` with user-scoped retrieval | MUST |
+| ASK-2 | POST handler calls `RagService.AskAsync(query, topKRetrieve, topKRank, modelId)` with user-scoped retrieval and the selected assistant | MUST |
 | ASK-3 | Display answer text alongside source document name and relevant excerpt per citation | MUST |
 | ASK-4 | Show user-friendly error when RAG pipeline is unavailable (connection timeout, service down) | MUST |
 | ASK-5 | Reject empty or whitespace-only queries with both client-side and server-side validation | MUST |
@@ -21,6 +21,8 @@ Web form for querying the RAG system. Users type a question and receive an AI-ge
 | ASK-11 | Service-unavailable view renders per design system with friendly copy and retry guidance; no stack traces (ASK-4 unchanged) | MUST |
 | ASK-12 | POST `Ask` requires a valid antiforgery token; a POST without a valid `__RequestVerificationToken` is rejected with HTTP 400 before any RAG pipeline call (per-action posture, no global filter; ASK-1..ASK-11 unchanged) | MUST |
 | ASK-13 | Result view renders a non-blank fallback when both `ErrorMessage` and `Answer` are empty; populated error/answer states render unchanged (ASK-3/ASK-4 unchanged) | MUST |
+| ASK-14 | Assistant selector on the Ask composer | MUST |
+| ASK-15 | Answer surface shows generating assistant | MUST |
 
 ### Scenario: Happy path — valid question answered
 
@@ -144,3 +146,38 @@ Web form for querying the RAG system. Users type a question and receive an AI-ge
 - GIVEN `ErrorMessage` or `Answer` is populated
 - WHEN the result view renders
 - THEN the existing error or answer branch renders exactly as before (ASK-3/ASK-4 unchanged)
+
+### Scenario: Selected assistant routed
+
+- GIVEN the user selected a catalog assistant on the form
+- WHEN the POST handler runs
+- THEN `modelId` is validated against the catalog and passed to `AskAsync`
+
+### Scenario: Blank selection
+
+- GIVEN the user submits without selecting an assistant
+- WHEN the POST handler runs
+- THEN the default assistant is used (no error)
+
+### Scenario: Selector renders
+
+- GIVEN the user opens `/Ask`
+- THEN the composer shows the assistant selector with catalog options and the default preselected
+
+### Scenario: No catalog
+
+- GIVEN no `AI:Ollama:Assistants` section
+- WHEN `/Ask` renders
+- THEN the selector shows a single default option derived from `ChatModel`
+
+### Scenario: Answer with attribution
+
+- GIVEN a successful RAG response
+- WHEN the result view renders
+- THEN the generating assistant's label is displayed with the answer
+
+### Scenario: Error state unchanged
+
+- GIVEN the RAG pipeline is unreachable
+- WHEN the error view renders
+- THEN the error renders as before with no attribution block

@@ -7,9 +7,15 @@ public class RagService(
     IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator,
     IVectorStore vectorStore,
     IReranker reranker,
-    IChatClient chatClient)
+    IChatClient chatClient,
+    AssistantCatalog assistantCatalog)
 {
-    public async Task<string> AskAsync(string query, int topKRetrieve = 20, int topKRank = 5, CancellationToken ct = default)
+    public async Task<string> AskAsync(
+        string query,
+        int topKRetrieve = 20,
+        int topKRank = 5,
+        string? modelId = null,
+        CancellationToken ct = default)
     {
         // 1. Generar embedding de la consulta
         var queryEmbeddings = await embeddingGenerator.GenerateAsync(new[] { query }, cancellationToken: ct);
@@ -40,8 +46,13 @@ public class RagService(
             ## Answer:
             """;
 
-        // Use the extension method that accepts a plain string
-        var response = await chatClient.GetResponseAsync(prompt, cancellationToken: ct);
+        // Per-request model routing (ASEL-2): resolve the model id against the
+        // catalog allow-list so only a catalog model ever reaches the chat
+        // client. Retrieval above is identical regardless of selection (ASEL-4/5/6).
+        var model = assistantCatalog.Resolve(modelId);
+
+        var response = await chatClient.GetResponseAsync(
+            prompt, new ChatOptions { ModelId = model.Model }, ct);
 
         return response.Text ?? "No se pudo generar una respuesta.";
     }

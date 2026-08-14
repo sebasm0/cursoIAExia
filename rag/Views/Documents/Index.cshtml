@@ -1,4 +1,5 @@
 @model IReadOnlyList<RAG.Domain.Entities.Document>
+@inject RAG.Application.Services.AssistantCatalog AssistantCatalog
 @{
     ViewData["Title"] = "Base de conocimiento";
 }
@@ -206,6 +207,20 @@
                     @Html.AntiForgeryToken()
                     <div class="flex-grow-1">
                         <label for="QueryQuick" class="form-label visually-hidden">Su pregunta</label>
+                        <label for="SelectedModelId" class="form-label visually-hidden">Asistente</label>
+                        <select name="SelectedModelId" id="SelectedModelId" class="form-select form-select-sm mb-2" aria-label="Asistente">
+                            @foreach (var assistant in AssistantCatalog.All)
+                            {
+                                if (assistant.Id == AssistantCatalog.Default.Id)
+                                {
+                                    <option value="@assistant.Id" title="@assistant.Description" selected>@assistant.Label — @assistant.Description</option>
+                                }
+                                else
+                                {
+                                    <option value="@assistant.Id" title="@assistant.Description">@assistant.Label — @assistant.Description</option>
+                                }
+                            }
+                        </select>
                         <textarea name="Query" id="QueryQuick" class="form-control" rows="2"
                                   placeholder="Pregunte a sus documentos…" required></textarea>
                     </div>

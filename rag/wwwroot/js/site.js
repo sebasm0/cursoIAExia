@@ -183,6 +183,17 @@ toggle.addEventListener('click', function () {
 
   var forms = document.querySelectorAll('.chat-composer form');
   forms.forEach(function (form) {
+    // Enter sends (Shift+Enter keeps the newline), mirroring chat conventions.
+    var textarea = form.querySelector('textarea');
+    if (textarea) {
+      textarea.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          form.requestSubmit();
+        }
+      });
+    }
+
     form.addEventListener('submit', function () {
       var btn = form.querySelector('.chat-send');
       if (btn) {

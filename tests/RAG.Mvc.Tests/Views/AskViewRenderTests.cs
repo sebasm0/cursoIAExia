@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.AI;
@@ -44,6 +45,34 @@ public class AskViewRenderTests
         // Design-system helper hint (real copy, no placeholder text).
         Assert.Contains("Las respuestas se generan únicamente a partir de sus documentos indexados.", body);
         Assert.DoesNotContain("lorem", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // ── ASK-14: GET /Ask renders the assistant selector with default preselected ──
+
+    [Fact]
+    public async Task Ask_Page_RendersAssistantSelectorWithDefaultPreselected()
+    {
+        await using var factory = new PolicyTestWebApplicationFactory([Permissions.RagAsk], []);
+        using var client = CreateClient(factory);
+
+        var response = await client.GetAsync("/Ask");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        // Dynamic catalog content is HTML-encoded by Razor; decode to assert the
+        // copy the user actually sees (ASK-14).
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+
+        // The composer shows a selector bound to SelectedModelId (ASK-14).
+        Assert.Contains("name=\"SelectedModelId\"", body);
+        // Every catalog assistant renders label + description (ASEL-1 config).
+        Assert.Contains("Phi3 Mini", body);
+        Assert.Contains("Equilibrio entre calidad y velocidad", body);
+        Assert.Contains("Qwen 2.5 1.5B", body);
+        Assert.Contains("Más rápido manteniendo buena calidad", body);
+        Assert.Contains("Llama 3.2 1B", body);
+        Assert.Contains("La opción más rápida", body);
+        // The default assistant is preselected (ASK-14).
+        Assert.Matches(@"<option value=""default""[^>]*selected", body);
     }
 
     // ── ASK-9: validation errors render on the form (ASK-5 unchanged) ──

@@ -30,8 +30,11 @@ public class AskControllerTests
     public async Task Ask_Post_EmptyQuery_ReturnsViewWithValidationError()
     {
         // Arrange — empty query hits ModelState check BEFORE service call,
-        // so we can pass null for the service.
-        var controller = new AskController(null!, Mock.Of<ILogger<AskController>>());
+        // so we can pass null for the service. The catalog is real (design D3).
+        var controller = new AskController(
+            null!,
+            Mock.Of<ILogger<AskController>>(),
+            new AssistantCatalog("phi3:mini", null));
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
@@ -97,6 +100,73 @@ public class AskControllerTests
 
         // Assert — the server must reject with HTTP 400 BEFORE any pipeline call.
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // ── ASK-15 / ASEL-9: POST with a catalog assistant attributes the answer ──
+
+    [Fact]
+    public async Task Ask_Post_SelectedAssistant_RendersResultAttributedToThatAssistant()
+    {
+        await using var factory = new CustomRagWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        // Act — select the "fast" assistant (qwen2.5:1.5b) on the form.
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/Ask", token,
+            ("Query", "What is the capital of France?"),
+            ("SelectedModelId", "fast")));
+
+        // Assert — the answer renders attributed to the selected assistant.
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Paris", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Generado por Qwen 2.5 1.5B", body);
+    }
+
+    // ── ASEL-2/ASEL-4: invalid selection falls back to default without error ──
+
+    [Fact]
+    public async Task Ask_Post_InvalidSelectedModelId_FallsBackToDefaultWithoutError()
+    {
+        await using var factory = new CustomRagWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        // Act — tampered model id outside the catalog allow-list.
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/Ask", token,
+            ("Query", "What is the capital of France?"),
+            ("SelectedModelId", "not-in-catalog")));
+
+        // Assert — the request completes and the default assistant is attributed.
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Paris", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Generado por Phi3 Mini", body);
+    }
+
+    // ── ASEL-2: blank selection uses the default assistant ──
+
+    [Fact]
+    public async Task Ask_Post_BlankSelectedModelId_UsesDefaultWithoutError()
+    {
+        await using var factory = new CustomRagWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        // Act — no SelectedModelId submitted (existing clients, ASK-2 regression).
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/Ask", token, ("Query", "What is the capital of France?")));
+
+        // Assert — the request completes and the default assistant is attributed.
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Paris", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Generado por Phi3 Mini", body);
     }
 }
 

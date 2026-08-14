@@ -1,5 +1,6 @@
 using RAG.Api.Endpoints;
 using RAG.Application;
+using RAG.Application.Services;
 using RAG.Infrastructure;
 using Microsoft.Extensions.AI;
 
@@ -18,6 +19,10 @@ builder.Services.AddSingleton<IChatClient>(
     new OllamaChatClient(ollamaBaseUrl, chatModel));
 builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
     new OllamaEmbeddingGenerator(ollamaBaseUrl, embeddingModel));
+
+// Assistant catalog (design D1, ASEL-1): the API host exposes only the default
+// chat model derived from Ollama:ChatModel; no catalog section is read yet.
+builder.Services.AddSingleton(new AssistantCatalog(chatModel, []));
 
 // Application & Infrastructure
 builder.Services.AddApplication();

@@ -16,24 +16,37 @@ public class AskController : Controller
 {
     private readonly RagService _ragService;
     private readonly ILogger<AskController> _logger;
+    private readonly AssistantCatalog _catalog;
 
-    public AskController(RagService ragService, ILogger<AskController> logger)
+    public AskController(RagService ragService, ILogger<AskController> logger, AssistantCatalog catalog)
     {
         _ragService = ragService;
         _logger = logger;
+        _catalog = catalog;
     }
 
     public IActionResult Index()
     {
-        // ASK-21 (chat UI): the view renders null-conditional fields; a bare
-        // null model would NRE, so supply an empty view model for the initial GET.
-        return View(new AskViewModel());
+        // ASK-14: the composer renders the catalog with the default preselected.
+        return View(new AskViewModel
+        {
+            AvailableAssistants = _catalog.All,
+            SelectedModelId = _catalog.Default.Id,
+        });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Ask(AskViewModel model, CancellationToken ct)
     {
+        // ASK-14/ASEL-4: validate the selection against the catalog allow-list;
+        // blank/unknown resolve to the default assistant without error, and the
+        // re-rendered form always shows a valid preselected option.
+        _catalog.TryResolve(model.SelectedModelId, out var assistant);
+        model.SelectedModelId = assistant.Id;
+        model.UsedAssistant = assistant.Label;
+        model.AvailableAssistants = _catalog.All;
+
         if (string.IsNullOrWhiteSpace(model.Query))
         {
             ModelState.AddModelError(nameof(model.Query), "Por favor, ingrese una pregunta.");
@@ -42,7 +55,7 @@ public class AskController : Controller
 
         try
         {
-            var answer = await _ragService.AskAsync(model.Query, ct: ct);
+            var answer = await _ragService.AskAsync(model.Query, modelId: assistant.Id, ct: ct);
             model.Answer = answer;
             return View("Result", model);
         }
