@@ -203,7 +203,8 @@
                 </div>
             </div>
             <div class="chat-composer">
-                <form asp-controller="Ask" asp-action="Ask" method="post" class="d-flex align-items-end gap-2">
+                <form asp-controller="Ask" asp-action="Ask" method="post" class="d-flex align-items-end gap-2"
+                      id="docs-chat-form" data-ask-json-url="@Url.Action("AskJson", "Ask")">
                     @Html.AntiForgeryToken()
                     <div class="flex-grow-1">
                         <label for="QueryQuick" class="form-label visually-hidden">Su pregunta</label>

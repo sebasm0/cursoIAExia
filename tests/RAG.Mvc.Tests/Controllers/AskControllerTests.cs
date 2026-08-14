@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -14,6 +15,7 @@ using RAG.Domain.Entities;
 using Microsoft.Extensions.AI;
 using RAG.Infrastructure.Identity;
 using RAG.Mvc.Tests.Auth;
+using RAG.Mvc.Tests.Views;
 using Xunit;
 
 namespace RAG.Mvc.Tests.Controllers;
@@ -24,6 +26,17 @@ namespace RAG.Mvc.Tests.Controllers;
 /// </summary>
 public class AskControllerTests
 {
+    /// <summary>
+    /// Parses the response body as JSON and returns a detached root element, so
+    /// the <see cref="JsonDocument"/> is disposed but the assertions keep a
+    /// usable snapshot of the payload.
+    /// </summary>
+    private static async Task<JsonElement> ReadJsonAsync(HttpResponseMessage response)
+    {
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return json.RootElement.Clone();
+    }
+
     // ── 5.1 Unit: Empty query returns validation error ──
 
     [Fact]
@@ -167,6 +180,117 @@ public class AskControllerTests
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("Paris", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Generado por Phi3 Mini", body);
+    }
+
+    // ── DocsChat-1: AskJson JSON endpoint for the Documents floating chat ──
+    // The floating chat in Documents/Index posts over fetch to this endpoint
+    // and renders the JSON answer in place, instead of navigating to the
+    // Ask/Result view. Contract: 200 { answer, usedModel } | 400 { error } |
+    // 502 { error } — always application/json, never a view.
+
+    [Fact]
+    public async Task AskJson_Post_ValidQuery_ReturnsJsonAnswerAndUsedModel()
+    {
+        await using var factory = new CustomRagWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        // Act — select the "fast" assistant (qwen2.5:1.5b) on the form.
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/AskJson", token,
+            ("Query", "What is the capital of France?"),
+            ("SelectedModelId", "fast")));
+
+        // Assert — a JSON payload (not a view) with the answer and attribution.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+
+        var root = await ReadJsonAsync(response);
+        Assert.Equal("The capital of France is Paris.", root.GetProperty("answer").GetString());
+        Assert.Equal("Qwen 2.5 1.5B", root.GetProperty("usedModel").GetString());
+    }
+
+    [Fact]
+    public async Task AskJson_Post_UnknownModelId_FallsBackToDefaultAssistant()
+    {
+        await using var factory = new CustomRagWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        // Act — tampered model id outside the catalog allow-list (ASEL-4).
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/AskJson", token,
+            ("Query", "What is the capital of France?"),
+            ("SelectedModelId", "not-in-catalog")));
+
+        // Assert — resolves to the default assistant without error.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var root = await ReadJsonAsync(response);
+        Assert.Equal("Phi3 Mini", root.GetProperty("usedModel").GetString());
+    }
+
+    [Fact]
+    public async Task AskJson_Post_BlankModelId_UsesDefaultAssistant()
+    {
+        await using var factory = new CustomRagWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        // Act — no SelectedModelId submitted (existing clients, ASK-2 regression).
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/AskJson", token, ("Query", "What is the capital of France?")));
+
+        // Assert — blank selection uses the default assistant.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var root = await ReadJsonAsync(response);
+        Assert.Equal("Phi3 Mini", root.GetProperty("usedModel").GetString());
+    }
+
+    [Fact]
+    public async Task AskJson_Post_EmptyQuery_ReturnsBadRequestJsonError()
+    {
+        await using var factory = new CustomRagWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        // Act — blank query hits the guard BEFORE any pipeline call.
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/AskJson", token, ("Query", "   ")));
+
+        // Assert — HTTP 400 with a JSON error, not a re-rendered view.
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+
+        var root = await ReadJsonAsync(response);
+        var error = root.GetProperty("error").GetString();
+        Assert.Contains("pregunta", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AskJson_Post_RagFailure_ReturnsBadGatewayJsonError()
+    {
+        await using var factory = new FailingRagWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        // Act — the chat client throws; RagService.AskAsync fails.
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/AskJson", token, ("Query", "Is the service up?")));
+
+        // Assert — HTTP 502 with a JSON error; no error view, no stack trace.
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+
+        var root = await ReadJsonAsync(response);
+        var error = root.GetProperty("error").GetString();
+        Assert.Contains("no disponible", error, StringComparison.OrdinalIgnoreCase);
     }
 }
 
