@@ -1,4 +1,9 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using RAG.Application.Services;
 using Xunit;
 
 namespace RAG.Api.Tests;
@@ -17,13 +22,45 @@ public class ConfigPinTests
     public void Api_Host_PinsEmbeddingModelAndRerankerDefault()
     {
         using var doc = ReadJson(Path.Combine(RepoRoot, "src", "RAG.Api", "appsettings.json"));
-        var ollama = doc.RootElement.GetProperty("Ollama");
+        // Aligned config schema: the API host reads AI:Ollama:* like the MVC host.
+        var ollama = doc.RootElement.GetProperty("AI").GetProperty("Ollama");
 
         // ASEL-5: embeddings must stay nomic-embed-text or the vector store is invalidated.
         Assert.Equal("nomic-embed-text", ollama.GetProperty("EmbeddingModel").GetString());
         // ASEL-6: the reranker (OllamaReranker) uses the default chat client's
-        // model; pinning the host chat model pins reranking behavior.
-        Assert.Equal("llama3.2", ollama.GetProperty("ChatModel").GetString());
+        // model; pinning the host chat model pins reranking behavior. Aligned
+        // with the MVC host and the installed Ollama models: plain "llama3.2"
+        // has no tag and is not pullable, phi3:mini is the installed default.
+        Assert.Equal("phi3:mini", ollama.GetProperty("ChatModel").GetString());
+    }
+
+    [Fact]
+    public void Api_Host_ExposesAssistantCatalog()
+    {
+        // (a) Config contract: the API appsettings ships the same multi-assistant
+        // allow-list as the MVC host (design D1, ASEL-1), so fast/tiny are
+        // selectable through the API exactly like the MVC app.
+        using var doc = ReadJson(Path.Combine(RepoRoot, "src", "RAG.Api", "appsettings.json"));
+        var assistants = doc.RootElement
+            .GetProperty("AI")
+            .GetProperty("Ollama")
+            .GetProperty("Assistants");
+        var ids = assistants.EnumerateArray()
+            .Select(a => a.GetProperty("id").GetString())
+            .ToHashSet();
+        Assert.Contains("default", ids);
+        Assert.Contains("fast", ids);
+        Assert.Contains("tiny", ids);
+
+        // (b) Runtime: Program registers a non-empty catalog resolved from that
+        // section (no longer the empty [] catalog), so /api/rag/ask routing can
+        // select the same assistants the MVC host offers.
+        using var factory = new ApiHostFactory();
+        var catalog = factory.Services.GetRequiredService<AssistantCatalog>();
+        Assert.True(catalog.All.Count >= 3, $"Expected at least 3 catalog entries, got {catalog.All.Count}.");
+        Assert.Contains(catalog.All, a => a.Id == "default");
+        Assert.Contains(catalog.All, a => a.Id == "fast");
+        Assert.Contains(catalog.All, a => a.Id == "tiny");
     }
 
     [Fact]
@@ -53,5 +90,27 @@ public class ConfigPinTests
             dir = dir.Parent;
         }
         throw new InvalidOperationException("Repo root (RAG.slnx) not found above the test output directory.");
+    }
+
+    /// <summary>
+    /// WAF variant that boots the real API host WITHOUT replacing the
+    /// <see cref="AssistantCatalog"/> (unlike <see cref="ApiWebApplicationFactory"/>,
+    /// which swaps in a two-entry catalog for the routing tests), so DI reflects
+    /// exactly what Program registers from AI:Ollama:Assistants.
+    /// </summary>
+    private sealed class ApiHostFactory : WebApplicationFactory<Program>
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            builder.ConfigureAppConfiguration((context, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    // Never allow the lazy PgVectorStore to point at a real database.
+                    ["ConnectionStrings:PostgreSQL"] =
+                        "Host=localhost;Database=rag_tests;Username=postgres;Password=__SECRET__",
+                });
+            });
+        }
     }
 }

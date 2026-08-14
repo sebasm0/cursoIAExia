@@ -18,7 +18,7 @@ switch (aiProvider)
 {
     case "Ollama":
         var ollamaBaseUrl = new Uri(builder.Configuration["AI:Ollama:BaseUrl"] ?? "http://localhost:11434");
-        var chatModel = builder.Configuration["AI:Ollama:ChatModel"] ?? "llama3.2";
+        var chatModel = builder.Configuration["AI:Ollama:ChatModel"] ?? "phi3:mini";
         var embeddingModel = builder.Configuration["AI:Ollama:EmbeddingModel"] ?? "nomic-embed-text";
 
         builder.Services.AddSingleton<IChatClient>(
