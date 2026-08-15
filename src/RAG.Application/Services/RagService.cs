@@ -36,6 +36,7 @@ public class RagService(
             Answer the question STRICTLY based on the provided context.
             If the context does not contain enough information, say it explicitly.
             Include citations to relevant fragments when possible.
+            Answer in the same language as the question.
 
             ## Context:
             {context}

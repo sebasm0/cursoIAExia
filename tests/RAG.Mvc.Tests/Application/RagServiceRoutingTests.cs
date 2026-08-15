@@ -54,6 +54,18 @@ public class RagServiceRoutingTests
     }
 
     [Fact]
+    public async Task AskAsync_Prompt_InstructsToAnswerInTheQuestionLanguage()
+    {
+        var harness = new RoutingHarness();
+
+        await harness.Service.AskAsync("¿Cuál es la capital de Francia?");
+
+        var prompt = harness.CapturedPrompt;
+        Assert.NotNull(prompt);
+        Assert.Contains("same language", prompt, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task AskAsync_RetrievalPipeline_UnchangedForAnySelection()
     {
         var harness = new RoutingHarness();
@@ -92,6 +104,7 @@ internal sealed class RoutingHarness
     public Mock<IVectorStore> VectorStore { get; }
     public Mock<IReranker> Reranker { get; }
     public ChatOptions? CapturedOptions { get; private set; }
+    public string? CapturedPrompt { get; private set; }
     public RagService Service { get; }
 
     public RoutingHarness()
@@ -134,7 +147,15 @@ internal sealed class RoutingHarness
                 It.IsAny<IEnumerable<ChatMessage>>(),
                 It.IsAny<ChatOptions?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<IEnumerable<ChatMessage>, ChatOptions?, CancellationToken>((_, options, _) => CapturedOptions = options)
+            .Callback<IEnumerable<ChatMessage>, ChatOptions?, CancellationToken>(
+                (messages, options, _) =>
+                {
+                    CapturedOptions = options;
+                    CapturedPrompt = messages
+                        .Where(m => m.Role == ChatRole.User)
+                        .Select(m => m.Text)
+                        .LastOrDefault();
+                })
             .ReturnsAsync(new ChatResponse(new ChatMessage(ChatRole.Assistant, "Mocked answer.")));
 
         var catalog = new AssistantCatalog("phi3:mini",
