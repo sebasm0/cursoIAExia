@@ -216,6 +216,9 @@ public class AskController : Controller
 
             // D7: mapping ChatSource → SourceRef lives only here, so the wire shape
             // stays identical to the AskStream done event (fileName/snippet/page).
+            // DocsChat-4 gate: source fragments only cross the wire for principals
+            // with documents.view, mirroring AskJson/AskStream (R1-001 correction).
+            var canViewSources = CanViewDocumentSources;
             var items = messages
                 .Select(m => new ChatHistoryItem(
                     m.Id,
@@ -223,7 +226,9 @@ public class AskController : Controller
                     m.Content,
                     m.CreatedAt,
                     m.ModelId,
-                    m.Sources.Select(s => new SourceRef(s.FileName, s.Snippet, s.Page)).ToList()))
+                    canViewSources
+                        ? m.Sources.Select(s => new SourceRef(s.FileName, s.Snippet, s.Page)).ToList()
+                        : []))
                 .ToList();
 
             return Json(items);

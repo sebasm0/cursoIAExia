@@ -117,6 +117,33 @@ public class ChatHistoryControllerTests
         Assert.Equal(3, sources[0].GetProperty("page").GetInt32());
     }
 
+    // ── DocsChat-4 gate (R1-001 correction): rag.ask without documents.view
+    //    gets empty sources on the wire, even for persisted messages ──
+
+    [Fact]
+    public async Task History_Get_WithoutDocumentsView_ReturnsEmptySources()
+    {
+        var store = new InMemoryChatHistoryStore();
+        await using var factory = new ChatHistoryTestWebApplicationFactory(
+            store, UserA.ToString(), "userA", permissions: [Permissions.RagAsk]);
+        using var client = factory.CreateClient();
+
+        // A message WITH sources persisted under rag.ask-only principal.
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+        var (_, _) = await PostMessageAsync(client, token, "assistant", "Respuesta con fuentes",
+            sources: new[]
+            {
+                new { fileName = "francia.pdf", snippet = "Paris es la capital.", page = 3 },
+            });
+
+        // The wire must NOT leak document fragments to a rag.ask-only principal.
+        var history = await GetHistoryAsync(client);
+        var item = Assert.Single(history);
+        Assert.Equal("Respuesta con fuentes", item.GetProperty("content").GetString());
+        var sources = item.GetProperty("sources");
+        Assert.Equal(0, sources.GetArrayLength());
+    }
+
     // ── CH-6: invalid role / empty content → 400, store untouched ──
 
     [Fact]
@@ -291,12 +318,21 @@ public sealed class ChatHistoryTestWebApplicationFactory : RagWebApplicationFact
     private readonly IChatHistoryStore _store;
     private readonly string? _userId;
     private readonly string? _userName;
+    private readonly string[] _permissions;
 
-    public ChatHistoryTestWebApplicationFactory(IChatHistoryStore store, string? userId = null, string? userName = null)
+    public ChatHistoryTestWebApplicationFactory(
+        IChatHistoryStore store,
+        string? userId = null,
+        string? userName = null,
+        string[]? permissions = null)
     {
         _store = store;
         _userId = userId;
         _userName = userName;
+        // Default: rag.ask + documents.view, so the shared round-trip tests see
+        // sources on the wire; gate tests pass explicit permissions without
+        // documents.view to prove the DocsChat-4 gate (R1-001 correction).
+        _permissions = permissions ?? [Permissions.RagAsk, Permissions.DocumentsView];
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -306,7 +342,7 @@ public sealed class ChatHistoryTestWebApplicationFactory : RagWebApplicationFact
         builder.ConfigureServices(services =>
         {
             services.AddPolicyTestAuthentication(
-                [Permissions.RagAsk], [], userId: _userId, userName: _userName);
+                _permissions, [], userId: _userId, userName: _userName);
 
             // The real PgChatHistoryStore is lazy but would try to reach
             // PostgreSQL on first use; the shared fake keeps tests DB-free and
