@@ -22,7 +22,7 @@ builder.Services.AddControllersWithViews();
 //       dotnet user-secrets set "AI:Gemini:ApiKey" "<your-key>"   (rag project)
 //     then set AI:Provider=Gemini (appsettings or env var). NEVER commit the
 //     key to appsettings.json or code. Optional overrides: AI:Gemini:ChatModel
-//     (default "gemini-2.5-flash"), AI:Gemini:BaseUrl, AI:Gemini:Assistants.
+//     (default "gemini-3.6-flash"), AI:Gemini:BaseUrl, AI:Gemini:Assistants.
 //     Embeddings and reranking stay local (Ollama); only final answer
 //     generation uses Gemini.
 
@@ -81,7 +81,7 @@ switch (aiProvider)
             throw new InvalidOperationException(
                 "AI:Gemini:ApiKey is required when AI:Provider=Gemini. Set it via `dotnet user-secrets set \"AI:Gemini:ApiKey\" \"<key>\"` in the rag project.");
         }
-        var geminiModel = builder.Configuration["AI:Gemini:ChatModel"] ?? "gemini-2.5-flash";
+        var geminiModel = builder.Configuration["AI:Gemini:ChatModel"] ?? "gemini-3.6-flash";
         var geminiBaseUrl = new Uri(builder.Configuration["AI:Gemini:BaseUrl"]
             ?? "https://generativelanguage.googleapis.com/v1beta/openai/");
 

@@ -17,7 +17,7 @@ var builder = WebApplication.CreateBuilder(args);
 //     (https://generativelanguage.googleapis.com/v1beta/openai/). Activate with
 //     AI:Provider=Gemini plus the API key via env config (AI:Gemini:ApiKey) —
 //     NEVER commit the key to appsettings.json or code. Optional overrides:
-//     AI:Gemini:ChatModel (default "gemini-2.5-flash"), AI:Gemini:BaseUrl,
+//     AI:Gemini:ChatModel (default "gemini-3.6-flash"), AI:Gemini:BaseUrl,
 //     AI:Gemini:Assistants. Embeddings and reranking stay local (Ollama); only
 //     final answer generation uses Gemini.
 
@@ -73,7 +73,7 @@ switch (aiProvider)
             throw new InvalidOperationException(
                 "AI:Gemini:ApiKey is required when AI:Provider=Gemini. Set it via the AI:Gemini:ApiKey environment variable (never commit the key to appsettings.json).");
         }
-        var geminiModel = builder.Configuration["AI:Gemini:ChatModel"] ?? "gemini-2.5-flash";
+        var geminiModel = builder.Configuration["AI:Gemini:ChatModel"] ?? "gemini-3.6-flash";
         var geminiBaseUrl = new Uri(builder.Configuration["AI:Gemini:BaseUrl"]
             ?? "https://generativelanguage.googleapis.com/v1beta/openai/");
 

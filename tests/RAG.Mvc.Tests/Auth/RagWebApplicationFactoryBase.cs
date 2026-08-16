@@ -18,6 +18,12 @@ public abstract class RagWebApplicationFactoryBase : WebApplicationFactory<Progr
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // UseSetting flows into the host configuration BEFORE the entry point
+        // runs (unlike ConfigureAppConfiguration, which applies after Program.cs
+        // already read builder.Configuration). Pinning the provider here keeps
+        // the WAF deterministic even when dev user-secrets select Gemini.
+        builder.UseSetting("AI:Provider", "Ollama");
+
         builder.ConfigureAppConfiguration((context, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>

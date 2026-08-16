@@ -65,8 +65,9 @@ public class GeminiProviderTests
 
         var chat = scope.ServiceProvider.GetRequiredService<IChatClient>();
 
-        // Regression guard: with no AI:Provider the host keeps the pre-change
-        // Ollama wiring (decorator wrapping the OllamaChatClient).
+        // Regression guard: with AI:Provider=Ollama the host keeps the
+        // pre-change Ollama wiring (decorator wrapping the OllamaChatClient),
+        // even when dev user-secrets select Gemini for the real app.
         var retrying = Assert.IsType<RetryingChatClient>(chat);
         var inner = Unwrap(retrying);
         Assert.Equal("Microsoft.Extensions.AI.OllamaChatClient", inner.GetType().FullName);
@@ -84,7 +85,7 @@ public class GeminiProviderTests
         // the Gemini chat model — never the Ollama default model.
         Assert.Single(catalog.All);
         Assert.Equal("default", catalog.Default.Id);
-        Assert.Equal("gemini-2.5-flash", catalog.Default.Model);
+        Assert.Equal("gemini-3.6-flash", catalog.Default.Model);
     }
 
     [Fact]
@@ -148,7 +149,7 @@ public class GeminiProviderTests
 /// <c>Program</c> switch sees it, and disabling DB migrate/seed so no real
 /// PostgreSQL is touched.
 /// </summary>
-public sealed class GeminiHostFactory(string? apiKey = "test-fake-key", string? chatModel = "gemini-2.5-flash")
+public sealed class GeminiHostFactory(string? apiKey = "test-fake-key", string? chatModel = "gemini-3.6-flash")
     : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -177,13 +178,16 @@ public sealed class GeminiHostFactory(string? apiKey = "test-fake-key", string? 
 }
 
 /// <summary>
-/// Default-provider factory: no <c>AI:Provider</c> is set, so <c>Program</c>
-/// falls back to Ollama — regression guard proving the default path is intact.
+/// Ollama-provider factory: pins <c>AI:Provider=Ollama</c> explicitly so the
+/// regression guard is deterministic even when the dev machine's user-secrets
+/// set <c>AI:Provider=Gemini</c> (which the WAF host would otherwise inherit).
 /// </summary>
 public sealed class DefaultOllamaHostFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.UseSetting("AI:Provider", "Ollama");
+
         builder.ConfigureAppConfiguration((context, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>

@@ -61,6 +61,10 @@ public sealed class TimeoutHostFactory(string? timeoutSeconds = null)
             builder.UseSetting("AI:Ollama:TimeoutSeconds", timeoutSeconds);
         }
 
+        // Pin the provider so the Ollama keyed HttpClient exists regardless of
+        // dev user-secrets selecting Gemini.
+        builder.UseSetting("AI:Provider", "Ollama");
+
         builder.ConfigureAppConfiguration((context, config) =>
         {
             var values = new Dictionary<string, string?>
