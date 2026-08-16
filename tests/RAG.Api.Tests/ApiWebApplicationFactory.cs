@@ -4,26 +4,32 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using RAG.Application.Services;
 using RAG.Domain.Abstractions;
 using RAG.Domain.Entities;
 
-namespace RAG.Mvc.Tests.Auth;
+namespace RAG.Api.Tests;
 
 /// <summary>
-/// Base <c>WebApplicationFactory</c> for the RAG MVC app: stubs the AI and
-/// infrastructure services and disables Identity startup migrate/seed so tests
-/// never touch a real PostgreSQL database (design D2/D3).
+/// WebApplicationFactory for the RAG API host: stubs the AI and infrastructure
+/// services so tests never touch a real Ollama instance or PostgreSQL database
+/// (same pattern as the MVC test factory in RAG.Mvc.Tests).
 /// </summary>
-public abstract class RagWebApplicationFactoryBase : WebApplicationFactory<Program>
+public class ApiWebApplicationFactory : WebApplicationFactory<Program>
 {
+    /// <summary>
+    /// ChatOptions captured from the last IChatClient call, so tests can assert
+    /// which model the routed request actually reached (ASEL-3/8).
+    /// </summary>
+    public ChatOptions? CapturedChatOptions { get; private set; }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureAppConfiguration((context, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                // Never migrate + seed a real database during tests (design D2).
-                ["Identity:ApplyMigrationsOnStartup"] = "false",
+                // Never allow the lazy PgVectorStore to point at a real database.
                 ["ConnectionStrings:PostgreSQL"] =
                     "Host=localhost;Database=rag_tests;Username=postgres;Password=__SECRET__",
             });
@@ -35,9 +41,6 @@ public abstract class RagWebApplicationFactoryBase : WebApplicationFactory<Progr
             RemoveService<IChatClient>(services);
             RemoveService<IEmbeddingGenerator<string, Embedding<float>>>(services);
 
-            // Default embedding (single vector) serves both the Ask query path
-            // and the Upload per-chunk path. Ask subclasses override the chat
-            // client with the canned answer they assert on.
             var mockEmbedding = new Mock<IEmbeddingGenerator<string, Embedding<float>>>();
             mockEmbedding
                 .Setup(g => g.GenerateAsync(
@@ -47,8 +50,34 @@ public abstract class RagWebApplicationFactoryBase : WebApplicationFactory<Progr
                 .ReturnsAsync(new GeneratedEmbeddings<Embedding<float>>(
                     [new Embedding<float>(new ReadOnlyMemory<float>([0.1f, 0.2f, 0.3f]))]));
 
-            services.AddSingleton<IChatClient>(Mock.Of<IChatClient>());
+            // The chat client captures ChatOptions.ModelId per request (ASEL-8).
+            // NOTE: the IChatClient interface signature is IEnumerable<ChatMessage>
+            // (Microsoft.Extensions.AI 9.7); a typed Moq callback must use the
+            // interface type or Moq throws ArgumentException.
+            var mockChat = new Mock<IChatClient>();
+            mockChat
+                .Setup(c => c.GetResponseAsync(
+                    It.IsAny<IEnumerable<ChatMessage>>(),
+                    It.IsAny<ChatOptions?>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<IEnumerable<ChatMessage>, ChatOptions?, CancellationToken>(
+                    (_, options, _) => CapturedChatOptions = options)
+                .ReturnsAsync(new ChatResponse(
+                    new ChatMessage(ChatRole.Assistant, "The capital of France is Paris.")));
+
+            services.AddSingleton<IChatClient>(mockChat.Object);
             services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(mockEmbedding.Object);
+
+            // ── Assistant catalog: default-only host catalog replaced with a
+            //    multi-entry allow-list so known-vs-unknown routing is provable
+            //    (ASEL-3/4) even though the API host ships default-only. ──
+            RemoveService<AssistantCatalog>(services);
+            services.AddSingleton(new AssistantCatalog(
+                "llama3.2",
+                [
+                    new AssistantDefinition("default", "Default", "llama3.2", "Default assistant"),
+                    new AssistantDefinition("fast", "Fast", "qwen2.5:1.5b", "Fast assistant"),
+                ]));
 
             // ── Stub infrastructure ──
             RemoveService<IVectorStore>(services);
@@ -96,15 +125,6 @@ public abstract class RagWebApplicationFactoryBase : WebApplicationFactory<Progr
     {
         var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(T));
         if (descriptor != null)
-        {
-            services.Remove(descriptor);
-        }
-    }
-
-    protected static void RemoveServices<T>(IServiceCollection services) where T : class
-    {
-        var descriptors = services.Where(d => d.ServiceType == typeof(T)).ToList();
-        foreach (var descriptor in descriptors)
         {
             services.Remove(descriptor);
         }

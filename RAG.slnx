@@ -8,5 +8,6 @@
   <Project Path="rag/rag.csproj" />
   <Folder Name="/tests/">
     <Project Path="tests/RAG.Mvc.Tests/RAG.Mvc.Tests.csproj" />
+    <Project Path="tests/RAG.Api.Tests/RAG.Api.Tests.csproj" />
   </Folder>
 </Solution>

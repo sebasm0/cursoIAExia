@@ -24,6 +24,53 @@ public class DocumentsViewRenderTests
     private static HttpClient CreateClient(WebApplicationFactory<Program> factory)
         => factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
+    // ── UPLOAD-13: floating chat renders the same assistant selector ──
+
+    [Fact]
+    public async Task Documents_Index_RendersAssistantSelectorInFloatingChat()
+    {
+        await using var factory = new PolicyTestWebApplicationFactory([Permissions.DocumentsUpload], []);
+        using var client = CreateClient(factory);
+
+        var response = await client.GetAsync("/Documents");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        // Dynamic catalog content is HTML-encoded by Razor; decode to assert the
+        // copy the user actually sees.
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+
+        // The floating chat composer posts SelectedModelId through the same
+        // AskController.Ask flow (UPLOAD-13) and lists the catalog options.
+        Assert.Contains("name=\"SelectedModelId\"", body);
+        Assert.Contains("Phi3 Mini", body);
+        Assert.Contains("Qwen 2.5 1.5B", body);
+        Assert.Contains("Llama 3.2 1B", body);
+    }
+
+    // ── DocsChat-2: floating chat form carries the AJAX hook for AskJson ──
+
+    [Fact]
+    public async Task Documents_Index_RendersFloatingChatFormWithAjaxHook()
+    {
+        await using var factory = new PolicyTestWebApplicationFactory([Permissions.DocumentsUpload], []);
+        using var client = CreateClient(factory);
+
+        var response = await client.GetAsync("/Documents");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+
+        // The form exposes the id site.js binds the fetch handler to, and the
+        // JSON endpoint it posts to (the answer renders in-place, no navigation).
+        Assert.Contains("id=\"docs-chat-form\"", body);
+        Assert.Contains("data-ask-json-url=\"/Ask/AskJson\"", body);
+        // The message panel the JS renders the bubbles into stays on the page.
+        Assert.Contains("id=\"docsChatPanel\"", body);
+        // Progressive enhancement preserved: with JavaScript disabled the native
+        // action still targets the classic Ask POST flow.
+        Assert.Contains("action=\"/Ask/Ask\"", body);
+    }
+
     // ── UPLOAD-10: Documents landing links to the reachable upload route ──
 
     [Fact]

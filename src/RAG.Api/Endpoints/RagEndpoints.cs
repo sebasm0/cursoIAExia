@@ -37,15 +37,23 @@ public static class RagEndpoints
         group.MapPost("/ask", async (
             AskRequest request,
             RagService rag,
+            AssistantCatalog catalog,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(request.Query))
                 return Results.BadRequest(new { error = "Query is required" });
 
+            // ASEL-3/4: resolve the optional ModelId against the catalog
+            // allow-list at the HTTP boundary — omitted, blank or unknown ids
+            // fall back to the default assistant, and a tampered value never
+            // reaches the chat client (only the resolved assistant id is passed).
+            var assistant = catalog.Resolve(request.ModelId);
+
             var answer = await rag.AskAsync(
                 request.Query,
                 request.TopKRetrieve,
                 request.TopKRank,
+                assistant.Id,
                 ct);
 
             return Results.Ok(new { answer });
@@ -62,4 +70,5 @@ public static class RagEndpoints
 public record AskRequest(
     string Query,
     int TopKRetrieve = 20,
-    int TopKRank = 5);
+    int TopKRank = 5,
+    string? ModelId = null);

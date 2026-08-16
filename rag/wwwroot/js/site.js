@@ -183,6 +183,17 @@ toggle.addEventListener('click', function () {
 
   var forms = document.querySelectorAll('.chat-composer form');
   forms.forEach(function (form) {
+    // Enter sends (Shift+Enter keeps the newline), mirroring chat conventions.
+    var textarea = form.querySelector('textarea');
+    if (textarea) {
+      textarea.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          form.requestSubmit();
+        }
+      });
+    }
+
     form.addEventListener('submit', function () {
       var btn = form.querySelector('.chat-send');
       if (btn) {
@@ -237,5 +248,141 @@ toggle.addEventListener('click', function () {
       setOpen(false);
       trigger.focus();
     }
+  });
+})();
+
+// DocsChat: the floating chat in Documents submits over fetch to the AskJson
+// endpoint (data-ask-json-url) and renders the answer in the chat panel in
+// place — no page navigation. The antiforgery token travels as a form field
+// (FormData picks up the hidden input), preserving the same
+// [ValidateAntiForgeryToken] contract as every other POST. All dynamic text is
+// set via textContent (never innerHTML) so user queries and LLM answers are
+// rendered as plain text. Enter-to-send / Shift+Enter-newline behavior is
+// handled by the generic .chat-composer block above (requestSubmit).
+(function () {
+  'use strict';
+
+  var form = document.getElementById('docs-chat-form');
+  if (!form) {
+    return;
+  }
+
+  var jsonUrl = form.getAttribute('data-ask-json-url');
+  var messages = document.getElementById('docsChatPanel');
+  var sendBtn = form.querySelector('.chat-send');
+  var textarea = form.querySelector('textarea');
+  if (!jsonUrl || !messages || !sendBtn || !textarea) {
+    return;
+  }
+
+  var emptyState = messages.querySelector('.chat-empty');
+
+  function scrollToBottom() {
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function createBubble(kind, text) {
+    var bubble = document.createElement('div');
+    bubble.className = 'msg-bubble ' + kind;
+    bubble.textContent = text;
+    return bubble;
+  }
+
+  function assistantRow() {
+    var row = document.createElement('div');
+    row.className = 'msg-row msg-row-assistant';
+
+    var icon = document.createElement('span');
+    icon.className = 'msg-assistant-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">' +
+      '<path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h6a1.5 1.5 0 0 1 1.5 1.5v3A1.5 1.5 0 0 1 11 11H5a1.5 1.5 0 0 1-1.5-1.5z"/>' +
+      '<path d="M8 10a2 2 0 0 1-2-2V3a2 2 0 1 1 4 0v5a2 2 0 0 1-2 2zM3 13.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5z"/></svg>';
+
+    var body = document.createElement('div');
+    row.appendChild(icon);
+    row.appendChild(body);
+    messages.appendChild(row);
+    return body;
+  }
+
+  function setPending(body) {
+    body.textContent = '';
+    body.appendChild(createBubble('msg-assistant', 'Generando…'));
+  }
+
+  function renderAnswer(body, answer, usedModel) {
+    body.textContent = '';
+    body.appendChild(createBubble('msg-assistant', answer));
+    var credit = document.createElement('div');
+    credit.className = 'small text-muted mt-1';
+    credit.textContent = 'Generado por ' + usedModel;
+    body.appendChild(credit);
+  }
+
+  function renderError(body, error) {
+    body.textContent = '';
+    body.appendChild(createBubble('msg-error', error));
+  }
+
+  function setBusy(busy) {
+    sendBtn.disabled = busy;
+    sendBtn.classList.toggle('is-loading', busy);
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    var query = textarea.value.trim();
+
+    // The server also guards (400 JSON); this keeps a blank bubble off the log.
+    if (!query) {
+      renderError(assistantRow(), 'Por favor, ingrese una pregunta.');
+      return;
+    }
+
+    // First interaction replaces the placeholder state.
+    if (emptyState) {
+      emptyState.remove();
+      emptyState = null;
+    }
+
+    var userRow = document.createElement('div');
+    userRow.className = 'msg-row msg-row-user';
+    userRow.appendChild(createBubble('msg-user', query));
+    messages.appendChild(userRow);
+    scrollToBottom();
+
+    var answerBody = assistantRow();
+    setPending(answerBody);
+    scrollToBottom();
+    setBusy(true);
+
+    // FormData includes Query, SelectedModelId and the antiforgery token.
+    var payload = new URLSearchParams(new FormData(form));
+
+    fetch(jsonUrl, { method: 'POST', body: payload })
+      .then(function (response) {
+        return response.json().then(function (data) {
+          return { ok: response.ok, data: data };
+        });
+      })
+      .then(function (result) {
+        if (result.ok && typeof result.data.answer === 'string') {
+          renderAnswer(answerBody, result.data.answer, result.data.usedModel || '');
+        } else {
+          renderError(answerBody, result.data.error || 'No se pudo generar una respuesta.');
+        }
+        scrollToBottom();
+      })
+      .catch(function () {
+        renderError(answerBody, 'No se pudo conectar con el servicio. Intente de nuevo.');
+      })
+      .finally(function () {
+        setBusy(false);
+        textarea.value = '';
+        textarea.focus();
+      });
   });
 })();

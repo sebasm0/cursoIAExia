@@ -51,6 +51,11 @@
   --rag-glass-border: rgba(17, 24, 39, 0.10);
   --rag-center-surface: rgba(255, 255, 255, 0.62);
   --rag-chat-surface: rgba(255, 255, 255, 0.92);
+
+  /* Primary surface token (light default). MUST stay before the dark block:
+     [data-bs-theme="dark"] and :root share specificity, so source order
+     decides which wins when <html data-bs-theme="dark"> is active. */
+  --rage-surface: #ffffff;
 }
 
 html {
@@ -155,10 +160,6 @@ body > footer {
   --rag-glass-border: rgba(255, 255, 255, 0.08);
   --rag-center-surface: #16181d;
   --rag-chat-surface: #1b1e24;
-}
-
-:root {
-  --rage-surface: #ffffff;
 }
 
 [data-bs-theme="dark"] .action-card:hover {
@@ -965,6 +966,26 @@ body > footer {
 .chat-composer .form-control {
   resize: none;
   background: var(--rage-surface);
+  color: var(--bs-body-color);
+  caret-color: var(--bs-body-color);
+  border: 1px solid var(--bs-border-color);
+}
+
+/* Slightly stronger border so the input field reads clearly against the
+   chat panel, especially on the dark theme. */
+[data-bs-theme="dark"] .chat-composer .form-control {
+  border-color: #3a4048;
+}
+
+.chat-composer .form-control::placeholder {
+  color: var(--rag-text-secondary);
+}
+
+.chat-composer .form-control:focus {
+  background: var(--rage-surface);
+  color: var(--bs-body-color);
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 0.2rem var(--bs-focus-ring-color);
 }
 
 .chat-send {

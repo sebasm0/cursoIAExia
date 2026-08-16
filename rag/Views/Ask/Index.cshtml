@@ -65,6 +65,13 @@
         <form asp-action="Ask" method="post" class="d-flex align-items-end gap-2">
             <div class="flex-grow-1">
                 <div asp-validation-summary="ModelOnly" class="text-danger small mb-2"></div>
+                <label asp-for="SelectedModelId" class="form-label visually-hidden">Asistente</label>
+                <select asp-for="SelectedModelId" class="form-select form-select-sm mb-2" aria-label="Asistente">
+                    @foreach (var assistant in Model.AvailableAssistants)
+                    {
+                        <option value="@assistant.Id" title="@assistant.Description">@assistant.Label — @assistant.Description</option>
+                    }
+                </select>
                 <label asp-for="Query" class="form-label visually-hidden">Su pregunta</label>
                 <textarea asp-for="Query" class="form-control" rows="2"
                           placeholder="¿Qué desea saber sobre sus documentos?" required></textarea>

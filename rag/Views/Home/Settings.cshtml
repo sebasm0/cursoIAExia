@@ -30,9 +30,18 @@
                     <span class="settings-value">@Model.OllamaBaseUrl</span>
                 </div>
                 <div class="settings-row">
-                    <span class="settings-label">Modelo de chat</span>
-                    <span class="settings-value">@Model.ChatModel</span>
+                    <span class="settings-label fw-semibold">Asistentes de chat</span>
                 </div>
+                @foreach (var assistant in Model.Assistants)
+                {
+                    <div class="settings-row">
+                        <span class="settings-label">@assistant.Label</span>
+                        <span class="settings-value">
+                            <code>@assistant.Model</code>
+                            <span class="small text-muted fw-normal d-block">@assistant.Description</span>
+                        </span>
+                    </div>
+                }
                 <div class="settings-row">
                     <span class="settings-label">Modelo de embeddings</span>
                     <span class="settings-value">@Model.EmbeddingModel</span>
