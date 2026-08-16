@@ -229,6 +229,55 @@ public class ChatHistoryControllerTests
         Assert.Equal(idB, itemB.GetProperty("id").GetGuid());
         Assert.DoesNotContain(itemB.GetProperty("id").GetGuid(), idsA);
     }
+
+    // ── R2-001 correction: empty/null JSON body → 400, nothing persisted ──
+
+    [Fact]
+    public async Task History_Post_NullBody_Returns400AndNothingPersisted()
+    {
+        var store = new InMemoryChatHistoryStore();
+        await using var factory = new ChatHistoryTestWebApplicationFactory(store, UserA.ToString(), "userA");
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        // Literal JSON null binds to a null request on a plain Controller (no
+        // [ApiController]) — must be 400, not a 500 NullReferenceException.
+        var request = new HttpRequestMessage(HttpMethod.Post, "/Ask/History")
+        {
+            Content = new StringContent("null", Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Add("RequestVerificationToken", token);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var root = await ReadJsonAsync(response);
+        Assert.False(string.IsNullOrEmpty(root.GetProperty("error").GetString()));
+        Assert.Equal(0, store.Count);
+    }
+
+    // ── R2-001 correction: store failure degrades to 502 JSON, not a raw 500 ──
+
+    [Fact]
+    public async Task History_StoreFailure_Returns502Json()
+    {
+        var store = new ThrowingChatHistoryStore();
+        await using var factory = new ChatHistoryTestWebApplicationFactory(store, UserA.ToString(), "userA");
+        using var client = factory.CreateClient();
+
+        var getResponse = await client.GetAsync("/Ask/History");
+        Assert.Equal(HttpStatusCode.BadGateway, getResponse.StatusCode);
+        var getRoot = await ReadJsonAsync(getResponse);
+        Assert.False(string.IsNullOrEmpty(getRoot.GetProperty("error").GetString()));
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+        var postResponse = await client.SendAsync(CreateJsonPost("/Ask/History", token,
+            new { role = "user", content = "Hola" }));
+        Assert.Equal(HttpStatusCode.BadGateway, postResponse.StatusCode);
+        var postRoot = await ReadJsonAsync(postResponse);
+        Assert.False(string.IsNullOrEmpty(postRoot.GetProperty("error").GetString()));
+    }
 }
 
 /// <summary>

@@ -210,21 +210,32 @@ public class AskController : Controller
             return Unauthorized();
         }
 
-        var messages = await _chatHistoryService.GetRecentAsync(userId.Value, ct);
+        try
+        {
+            var messages = await _chatHistoryService.GetRecentAsync(userId.Value, ct);
 
-        // D7: mapping ChatSource → SourceRef lives only here, so the wire shape
-        // stays identical to the AskStream done event (fileName/snippet/page).
-        var items = messages
-            .Select(m => new ChatHistoryItem(
-                m.Id,
-                m.Role,
-                m.Content,
-                m.CreatedAt,
-                m.ModelId,
-                m.Sources.Select(s => new SourceRef(s.FileName, s.Snippet, s.Page)).ToList()))
-            .ToList();
+            // D7: mapping ChatSource → SourceRef lives only here, so the wire shape
+            // stays identical to the AskStream done event (fileName/snippet/page).
+            var items = messages
+                .Select(m => new ChatHistoryItem(
+                    m.Id,
+                    m.Role,
+                    m.Content,
+                    m.CreatedAt,
+                    m.ModelId,
+                    m.Sources.Select(s => new SourceRef(s.FileName, s.Snippet, s.Page)).ToList()))
+                .ToList();
 
-        return Json(items);
+            return Json(items);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error reading chat history for user {UserId}", userId.Value);
+            return new JsonResult(new { error = "El historial de chat está temporalmente no disponible. Intente de nuevo más tarde." })
+            {
+                StatusCode = StatusCodes.Status502BadGateway,
+            };
+        }
     }
 
     /// <summary>
@@ -246,21 +257,42 @@ public class AskController : Controller
             return Unauthorized();
         }
 
-        var result = await _chatHistoryService.AddAsync(
-            userId.Value, request.Role, request.Content, request.ModelId, request.Sources, ct);
-
-        if (!result.IsValid || result.Message is null)
+        // CH-6: a null body (empty JSON or literal null) is invalid input, not a
+        // server failure — 400 before any dereference (R2-001 correction).
+        if (request is null)
         {
-            return new JsonResult(new { error = result.ErrorMessage ?? "Mensaje inválido." })
+            return new JsonResult(new { error = "Cuerpo de mensaje inválido." })
             {
                 StatusCode = StatusCodes.Status400BadRequest,
             };
         }
 
-        return new JsonResult(new { id = result.Message.Id, createdAt = result.Message.CreatedAt })
+        try
         {
-            StatusCode = StatusCodes.Status201Created,
-        };
+            var result = await _chatHistoryService.AddAsync(
+                userId.Value, request.Role, request.Content, request.ModelId, request.Sources, ct);
+
+            if (!result.IsValid || result.Message is null)
+            {
+                return new JsonResult(new { error = result.ErrorMessage ?? "Mensaje inválido." })
+                {
+                    StatusCode = StatusCodes.Status400BadRequest,
+                };
+            }
+
+            return new JsonResult(new { id = result.Message.Id, createdAt = result.Message.CreatedAt })
+            {
+                StatusCode = StatusCodes.Status201Created,
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error persisting chat history for user {UserId}", userId.Value);
+            return new JsonResult(new { error = "El historial de chat está temporalmente no disponible. Intente de nuevo más tarde." })
+            {
+                StatusCode = StatusCodes.Status502BadGateway,
+            };
+        }
     }
 
     /// <summary>

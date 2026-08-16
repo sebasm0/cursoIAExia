@@ -61,3 +61,17 @@ public sealed class InMemoryChatHistoryStore : IChatHistoryStore
         }
     }
 }
+
+/// <summary>
+/// <see cref="IChatHistoryStore"/> fake that throws on every call — proves the
+/// controller degrades store failures to 502 JSON instead of a raw 500
+/// (R2-001 correction), mirroring the AskJson 502 contract.
+/// </summary>
+public sealed class ThrowingChatHistoryStore : IChatHistoryStore
+{
+    public Task<ChatMessage> AddAsync(ChatMessage message, CancellationToken ct = default)
+        => throw new InvalidOperationException("PostgreSQL is down");
+
+    public Task<IReadOnlyList<ChatMessage>> GetRecentAsync(Guid userId, int limit, CancellationToken ct = default)
+        => throw new InvalidOperationException("PostgreSQL is down");
+}
