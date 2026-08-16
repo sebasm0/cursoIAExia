@@ -28,6 +28,16 @@ public class AskController : Controller
         _catalog = catalog;
     }
 
+    /// <summary>
+    /// DocsChat-4 security gate: source fragments (verbatim document chunk text)
+    /// are only exposed to principals that can view documents (RBAC:
+    /// <c>documents.view</c>). Users holding only <c>rag.ask</c> — e.g. the
+    /// seeded Viewer role — get an empty sources array; the answer itself still
+    /// streams, but raw document snippets never cross the wire for them.
+    /// </summary>
+    private bool CanViewDocumentSources =>
+        User.HasClaim(Permissions.ClaimType, Permissions.DocumentsView);
+
     public IActionResult Index()
     {
         // ASK-14: the composer renders the catalog with the default preselected.
@@ -94,8 +104,9 @@ public class AskController : Controller
 
         try
         {
-            var answer = await _ragService.AskAsync(model.Query, modelId: assistant.Id, ct: ct);
-            return Json(new { answer, usedModel = assistant.Label });
+            var (answer, sources) = await _ragService.AskWithSourcesAsync(
+                model.Query, modelId: assistant.Id, ct: ct);
+            return Json(new { answer, usedModel = assistant.Label, sources = CanViewDocumentSources ? sources : [] });
         }
         catch (Exception ex)
         {
@@ -117,9 +128,11 @@ public class AskController : Controller
     /// Wire contract:
     /// <code>
     /// Content-Type: text/event-stream
-    /// data: {"delta":"text"}                    (one per generated text chunk)
-    /// data: {"done":true,"usedModel":"label"}   (terminal success event)
-    /// data: {"error":"message"}                 (terminal failure event)
+    /// data: {"delta":"text"}                                  (one per generated text chunk)
+    /// data: {"done":true,"usedModel":"label","sources":[...]} (terminal success event;
+    ///                                                            sources = [{fileName,snippet,page},...]
+    ///                                                            of the top-ranked fragments, DocsChat-4)
+    /// data: {"error":"message"}                               (terminal failure event)
     /// </code>
     /// An empty query is rejected with a 400 JSON error BEFORE the stream starts;
     /// blank/unknown model ids resolve to the default assistant (ASEL-2/4).
@@ -144,22 +157,30 @@ public class AskController : Controller
         // the client as soon as it is flushed, not when the action completes.
         HttpContext.Features.Get<IHttpResponseBodyFeature>()?.DisableBuffering();
 
+        // Web defaults (camelCase) keep the SSE payloads consistent with the
+        // AskJson JSON contract — SourceRef record properties (fileName, snippet,
+        // page) must not leak as PascalCase on the wire.
+        var sseJsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+
         async Task WriteEventAsync(object payload)
         {
-            await Response.WriteAsync($"data: {JsonSerializer.Serialize(payload)}\n\n", ct);
+            await Response.WriteAsync(
+                $"data: {JsonSerializer.Serialize(payload, sseJsonOptions)}\n\n", ct);
             await Response.Body.FlushAsync(ct);
         }
 
         try
         {
-            await foreach (var delta in _ragService
-                .AskStreamingAsync(model.Query, modelId: assistant.Id)
-                .WithCancellation(ct))
+            // Retrieval runs once, up front; its topResults become the sources
+            // carried by the terminal done event, while the answer still streams.
+            var (deltas, sources) = await _ragService.AskStreamWithSourcesAsync(
+                model.Query, modelId: assistant.Id);
+            await foreach (var delta in deltas.WithCancellation(ct))
             {
                 await WriteEventAsync(new { delta });
             }
 
-            await WriteEventAsync(new { done = true, usedModel = assistant.Label });
+            await WriteEventAsync(new { done = true, usedModel = assistant.Label, sources = CanViewDocumentSources ? sources : [] });
         }
         catch (Exception ex)
         {

@@ -255,9 +255,11 @@ toggle.addEventListener('click', function () {
 // endpoint (data-ask-stream-url) and renders the answer in the chat panel in
 // place — no page navigation. The endpoint replies with Server-Sent Events
 // (text/event-stream): each event is a JSON payload carrying a text delta, a
-// terminal "done" (with the assistant label) or a terminal "error". The
+// terminal "done" (with the assistant label and, since DocsChat-4, the sources
+// array of fragments that backed the answer) or a terminal "error". The
 // ReadableStream reader accumulates the answer into a single bubble as the
-// chunks arrive, so text appears while it is still being generated. The
+// chunks arrive, so text appears while it is still being generated, and the
+// sources render as clickable chips that reveal each snippet. The
 // antiforgery token travels as a form field (FormData picks up the hidden
 // input), preserving the same [ValidateAntiForgeryToken] contract as every
 // other POST. All dynamic text is set via textContent (never innerHTML) so
@@ -323,9 +325,10 @@ toggle.addEventListener('click', function () {
   }
 
   // Reads the SSE response body via fetch ReadableStream and dispatches each
-  // event. Resolves with the assistant label when the terminal "done" event
-  // arrives; rejects with the server error message on an "error" event and with
-  // a generic message when the stream ends without a terminal event (cut mid-
+  // event. Resolves with the terminal "done" event object (carrying the
+  // assistant label and, since DocsChat-4, the sources array) when it arrives;
+  // rejects with the server error message on an "error" event and with a
+  // generic message when the stream ends without a terminal event (cut mid-
   // answer) or when an event cannot be parsed.
   function consumeEventStream(body, appendDelta) {
     var reader = body.getReader();
@@ -369,7 +372,7 @@ toggle.addEventListener('click', function () {
             return;
           }
           if (event.done) {
-            resolve(event.usedModel || '');
+            resolve(event);
             return;
           }
           if (typeof event.delta === 'string') {
@@ -384,6 +387,49 @@ toggle.addEventListener('click', function () {
     return new Promise(function (resolve, reject) {
       pump(resolve, reject);
     });
+  }
+
+  // Renders the clickable source chips under the answer (DocsChat-4): one chip
+  // per fragment that backed the answer (file name, or "Fuente N" when the
+  // chunk carries none), each toggling a collapsible block with the snippet.
+  // All dynamic text is set via textContent, so LLM-derived snippets can never
+  // inject markup; the optional page number is appended when present.
+  function renderSources(container, sources) {
+    if (!Array.isArray(sources) || sources.length === 0) {
+      return;
+    }
+
+    var label = document.createElement('div');
+    label.className = 'small text-muted mt-2';
+    label.textContent = 'Fuentes';
+    container.appendChild(label);
+
+    sources.forEach(function (source, i) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'btn btn-sm btn-outline-secondary me-1 mt-1';
+      var name = source && source.fileName ? source.fileName : ('Fuente ' + (i + 1));
+      if (source && source.page != null) {
+        name += ' · pág. ' + source.page;
+      }
+      chip.textContent = name;
+      chip.setAttribute('aria-expanded', 'false');
+
+      var snippet = document.createElement('div');
+      snippet.className = 'small text-muted mt-1 p-2 border rounded';
+      snippet.hidden = true;
+      snippet.textContent = (source && source.snippet) || '';
+
+      chip.addEventListener('click', function () {
+        snippet.hidden = !snippet.hidden;
+        chip.setAttribute('aria-expanded', String(!snippet.hidden));
+      });
+
+      container.appendChild(chip);
+      container.appendChild(snippet);
+    });
+
+    scrollToBottom();
   }
 
   form.addEventListener('submit', function (e) {
@@ -453,12 +499,15 @@ toggle.addEventListener('click', function () {
         }
         return consumeEventStream(response.body, appendDelta);
       })
-      .then(function (usedModel) {
-        // done event: append the attribution credit and settle the layout.
+      .then(function (done) {
+        // done event: append the attribution credit, then the clickable source
+        // chips (DocsChat-4), and settle the layout.
+        var usedModel = done && done.usedModel ? done.usedModel : '';
         var credit = document.createElement('div');
         credit.className = 'small text-muted mt-1';
         credit.textContent = 'Generado por ' + usedModel;
         answerBody.appendChild(credit);
+        renderSources(answerBody, done && done.sources);
         scrollToBottom();
       })
       .catch(function (err) {

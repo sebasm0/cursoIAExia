@@ -241,6 +241,124 @@ public class RagServiceRoutingTests
             It.IsAny<string?>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    // ── Citations (DocsChat-4): AskWithSourcesAsync exposes the top-ranked ──
+    // fragments that backed the answer, in rerank order, capped at topKRank.
+    // The sources array is ADDITIVE to the existing answer contract; retrieval
+    // stays unchanged, only its results become visible to callers.
+
+    [Fact]
+    public async Task AskWithSourcesAsync_ReturnsAnswerAndTopRankedSources()
+    {
+        var harness = new RoutingHarness();
+
+        var (answer, sources) = await harness.Service.AskWithSourcesAsync(
+            "What is the capital of France?", modelId: "fast");
+
+        // The answer keeps its contract; the sources mirror the reranked top
+        // results (Paris before France borders Spain) as snippet-only refs.
+        Assert.Equal("Mocked answer.", answer);
+        Assert.Equal(2, sources.Count);
+        Assert.Equal("Paris is the capital of France.", sources[0].Snippet);
+        Assert.Equal("France borders Spain.", sources[1].Snippet);
+    }
+
+    [Fact]
+    public async Task AskWithSourcesAsync_SourcesCarryFileNameFromChunkMetadata()
+    {
+        var results = new List<SearchResult>
+        {
+            new()
+            {
+                Chunk = new DocumentChunk
+                {
+                    Content = "Paris is the capital of France.",
+                    Metadata = new() { ["source"] = "francia.pdf" },
+                },
+                RrfScore = 0.9,
+            },
+            new()
+            {
+                Chunk = new DocumentChunk
+                {
+                    Content = "France borders Spain.",
+                    Metadata = new() { ["source"] = "espana.pdf" },
+                },
+                RrfScore = 0.8,
+            },
+        };
+        var harness = new RoutingHarness(results);
+
+        var (_, sources) = await harness.Service.AskWithSourcesAsync("What is the capital of France?");
+
+        // The chunk's "source" metadata (the file name set at chunking time)
+        // becomes the citation's fileName. No page-aware extraction exists yet
+        // (the PDF parser flattens pages), so the optional page stays null.
+        Assert.Equal("francia.pdf", sources[0].FileName);
+        Assert.Equal("espana.pdf", sources[1].FileName);
+        Assert.Null(sources[0].Page);
+        Assert.Null(sources[1].Page);
+    }
+
+    [Fact]
+    public async Task AskWithSourcesAsync_RespectsTopKRankLimit()
+    {
+        var harness = new RoutingHarness();
+
+        var (_, sources) = await harness.Service.AskWithSourcesAsync(
+            "What is the capital of France?", topKRank: 1);
+
+        // Only the top reranked fragment survives the topKRank cut.
+        Assert.Single(sources);
+        Assert.Equal("Paris is the capital of France.", sources[0].Snippet);
+    }
+
+    [Fact]
+    public async Task AskWithSourcesAsync_RunsRetrievalPipelineOnce()
+    {
+        var harness = new RoutingHarness();
+
+        await harness.Service.AskWithSourcesAsync("Q1", modelId: "fast");
+
+        // Sources are a view over the SAME single retrieval pass — adding the
+        // citations must not double the embedding/search/rerank work (ASEL-5/6).
+        harness.EmbeddingGenerator.Verify(g => g.GenerateAsync(
+            It.IsAny<IEnumerable<string>>(),
+            It.IsAny<EmbeddingGenerationOptions?>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        harness.VectorStore.Verify(v => v.HybridSearchAsync(
+            It.IsAny<ReadOnlyMemory<float>>(),
+            It.IsAny<string>(),
+            It.IsAny<int>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        harness.Reranker.Verify(r => r.RerankAsync(
+            It.IsAny<string>(),
+            It.IsAny<IReadOnlyList<SearchResult>>(),
+            It.IsAny<string?>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task AskStreamWithSourcesAsync_ReturnsDeltasAndSources()
+    {
+        var harness = new RoutingHarness();
+
+        var (deltas, sources) = await harness.Service.AskStreamWithSourcesAsync(
+            "What is the capital of France?");
+
+        // Streaming contract preserved (deltas in order, unmodified) plus the
+        // sources that backed the streamed answer.
+        var updates = new List<string>();
+        await foreach (var update in deltas)
+        {
+            updates.Add(update);
+        }
+
+        Assert.Equal(["Mock", "ed", " answer."], updates);
+        Assert.Equal(2, sources.Count);
+        Assert.Equal("Paris is the capital of France.", sources[0].Snippet);
+        Assert.Equal("France borders Spain.", sources[1].Snippet);
+    }
 }
 
 /// <summary>
@@ -259,7 +377,7 @@ internal sealed class RoutingHarness
     public string? CapturedPrompt { get; private set; }
     public RagService Service { get; }
 
-    public RoutingHarness()
+    public RoutingHarness(IReadOnlyList<SearchResult>? searchResults = null)
     {
         EmbeddingGenerator = new Mock<IEmbeddingGenerator<string, Embedding<float>>>();
         EmbeddingGenerator
@@ -270,7 +388,9 @@ internal sealed class RoutingHarness
             .ReturnsAsync(new GeneratedEmbeddings<Embedding<float>>(
                 [new Embedding<float>(new ReadOnlyMemory<float>([0.1f, 0.2f, 0.3f]))]));
 
-        var results = new List<SearchResult>
+        // The two known fragments used by the routing tests; callers may inject
+        // their own (e.g. chunks carrying "source" metadata) via the ctor.
+        var results = searchResults ?? new List<SearchResult>
         {
             new() { Chunk = new DocumentChunk { Content = "Paris is the capital of France." }, RrfScore = 0.9 },
             new() { Chunk = new DocumentChunk { Content = "France borders Spain." }, RrfScore = 0.8 },

@@ -422,6 +422,138 @@ public class AskControllerTests
         Assert.Contains("no disponible", error, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("InvalidOperationException", error);
     }
+
+    // ── DocsChat-4: AskJson/AskStream expose the sources that backed the ──
+    // answer. The sources array is ADDITIVE: answer/usedModel/delta/done keep
+    // their existing wire contract untouched, and the fragments arrive in
+    // rerank order with the file name from the chunk's "source" metadata.
+
+    [Fact]
+    public async Task AskJson_Post_ValidQuery_ReturnsSourcesArray()
+    {
+        await using var factory = new SourcesRagWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        // Act — select the "fast" assistant (qwen2.5:1.5b) on the form.
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/AskJson", token,
+            ("Query", "What is the capital of France?"),
+            ("SelectedModelId", "fast")));
+
+        // Assert — additive contract: the pre-existing fields survive, and the
+        // sources array mirrors the reranked fragments with their file names.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+
+        var root = await ReadJsonAsync(response);
+        Assert.Equal("The capital of France is Paris.", root.GetProperty("answer").GetString());
+        Assert.Equal("Qwen 2.5 1.5B", root.GetProperty("usedModel").GetString());
+
+        var sources = root.GetProperty("sources");
+        Assert.Equal(2, sources.GetArrayLength());
+        Assert.Equal("francia.pdf", sources[0].GetProperty("fileName").GetString());
+        Assert.Equal("Paris is the capital of France.", sources[0].GetProperty("snippet").GetString());
+        Assert.Equal("espana.pdf", sources[1].GetProperty("fileName").GetString());
+        Assert.Equal("France borders Spain.", sources[1].GetProperty("snippet").GetString());
+    }
+
+    [Fact]
+    public async Task AskStream_Post_ValidQuery_DoneEventCarriesSources()
+    {
+        await using var factory = new StreamingSourcesRagWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        // Act — select the "fast" assistant (qwen2.5:1.5b) on the form.
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/AskStream", token,
+            ("Query", "What is the capital of France?"),
+            ("SelectedModelId", "fast")));
+
+        // Assert — the stream keeps its delta contract...
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
+
+        var events = await ReadSseEventsAsync(response);
+
+        var deltaEvents = events.Where(e => e.Contains("\"delta\"")).ToList();
+        Assert.Equal(2, deltaEvents.Count);
+        var answer = string.Concat(deltaEvents.Select(e =>
+            JsonDocument.Parse(e).RootElement.GetProperty("delta").GetString()));
+        Assert.Equal("The capital of France is Paris.", answer);
+
+        // ...and the terminal done event now also carries the sources used.
+        var doneEvent = Assert.Single(events.Where(e => e.Contains("\"done\"")));
+        var done = JsonDocument.Parse(doneEvent).RootElement;
+        Assert.True(done.GetProperty("done").GetBoolean());
+        Assert.Equal("Qwen 2.5 1.5B", done.GetProperty("usedModel").GetString());
+
+        var sources = done.GetProperty("sources");
+        Assert.Equal(2, sources.GetArrayLength());
+        Assert.Equal("Paris is the capital of France.", sources[0].GetProperty("snippet").GetString());
+        Assert.Equal("France borders Spain.", sources[1].GetProperty("snippet").GetString());
+    }
+
+    // ── DocsChat-4 security gate: raw document fragments only travel to ──
+    // principals holding documents.view. A user with just rag.ask (e.g. the
+    // seeded Viewer role) still gets the answer, but sources degrade to [].
+
+    [Fact]
+    public async Task AskJson_Post_WithoutDocumentsView_ReturnsEmptySources()
+    {
+        await using var factory = new SourcesRagWebApplicationFactory([Permissions.RagAsk]);
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/AskJson", token,
+            ("Query", "What is the capital of France?"),
+            ("SelectedModelId", "fast")));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var root = await ReadJsonAsync(response);
+        // The answer still flows...
+        Assert.Equal("The capital of France is Paris.", root.GetProperty("answer").GetString());
+        // ...but the raw fragments are withheld without documents.view.
+        var sources = root.GetProperty("sources");
+        Assert.Equal(0, sources.GetArrayLength());
+    }
+
+    [Fact]
+    public async Task AskStream_Post_WithoutDocumentsView_DoneEventHasEmptySources()
+    {
+        await using var factory = new StreamingSourcesRagWebApplicationFactory([Permissions.RagAsk]);
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/AskStream", token,
+            ("Query", "What is the capital of France?"),
+            ("SelectedModelId", "fast")));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var events = await ReadSseEventsAsync(response);
+
+        // Streaming contract intact...
+        var deltaEvents = events.Where(e => e.Contains("\"delta\"")).ToList();
+        Assert.Equal(2, deltaEvents.Count);
+        var answer = string.Concat(deltaEvents.Select(e =>
+            JsonDocument.Parse(e).RootElement.GetProperty("delta").GetString()));
+        Assert.Equal("The capital of France is Paris.", answer);
+
+        // ...but the done event withholds the fragments without documents.view.
+        var doneEvent = Assert.Single(events.Where(e => e.Contains("\"done\"")));
+        var done = JsonDocument.Parse(doneEvent).RootElement;
+        var sources = done.GetProperty("sources");
+        Assert.Equal(0, sources.GetArrayLength());
+    }
 }
 
 /// <summary>
@@ -527,5 +659,158 @@ public class FailingStreamingRagWebApplicationFactory : RagWebApplicationFactory
     {
         yield return new ChatResponseUpdate(ChatRole.Assistant, "Partial");
         throw new InvalidOperationException("ollama unavailable");
+    }
+}
+
+/// <summary>
+/// Factory whose vector store/reranker return two known fragments — carrying
+/// "source" metadata so the citations expose file names — and whose chat
+/// client answers with the canned text the assertions expect (DocsChat-4).
+/// Authenticates with <c>documents.view</c> by default (the sources gate only
+/// releases raw fragments to principals that may view documents); pass a
+/// reduced permission set to exercise the gate itself.
+/// </summary>
+public class SourcesRagWebApplicationFactory(string[]? permissions = null) : RagWebApplicationFactoryBase
+{
+    private readonly string[] _permissions =
+        permissions ?? [Permissions.RagAsk, Permissions.DocumentsView];
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+
+        builder.ConfigureServices(services =>
+        {
+            // The Ask endpoints are gated by rag.ask (ASK-8); the sources gate
+            // additionally requires documents.view (DocsChat-4 security fix).
+            services.AddPolicyTestAuthentication(_permissions, []);
+
+            // DocsChat-4: the sources come from the retrieval results — stub the
+            // store and reranker with two known fragments instead of the base
+            // empty set, then answer with the canned text.
+            RemoveService<IChatClient>(services);
+            RemoveService<IVectorStore>(services);
+            RemoveService<IReranker>(services);
+
+            var results = new List<SearchResult>
+            {
+                new()
+                {
+                    Chunk = new DocumentChunk
+                    {
+                        Content = "Paris is the capital of France.",
+                        Metadata = new() { ["source"] = "francia.pdf" },
+                    },
+                    RrfScore = 0.9,
+                },
+                new()
+                {
+                    Chunk = new DocumentChunk
+                    {
+                        Content = "France borders Spain.",
+                        Metadata = new() { ["source"] = "espana.pdf" },
+                    },
+                    RrfScore = 0.8,
+                },
+            };
+
+            var mockVectorStore = new Mock<IVectorStore>();
+            mockVectorStore
+                .Setup(v => v.HybridSearchAsync(
+                    It.IsAny<ReadOnlyMemory<float>>(),
+                    It.IsAny<string>(),
+                    It.IsAny<int>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(results);
+            services.AddSingleton<IVectorStore>(mockVectorStore.Object);
+
+            var mockReranker = new Mock<IReranker>();
+            mockReranker
+                .Setup(r => r.RerankAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<IReadOnlyList<SearchResult>>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(results);
+            services.AddSingleton<IReranker>(mockReranker.Object);
+
+            var mockChat = new Mock<IChatClient>();
+            mockChat
+                .Setup(c => c.GetResponseAsync(
+                    It.IsAny<IList<ChatMessage>>(),
+                    It.IsAny<ChatOptions?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ChatResponse(new ChatMessage(ChatRole.Assistant, "The capital of France is Paris.")));
+            services.AddSingleton<IChatClient>(mockChat.Object);
+        });
+    }
+}
+
+/// <summary>
+/// Same known fragments as <see cref="SourcesRagWebApplicationFactory"/>, but
+/// the chat client streams the canned answer in deltas, exercising the SSE
+/// done-event-with-sources contract (DocsChat-4). Authenticates with
+/// <c>documents.view</c> by default; pass a reduced permission set to exercise
+/// the sources gate on the streaming path.
+/// </summary>
+public class StreamingSourcesRagWebApplicationFactory(string[]? permissions = null) : RagWebApplicationFactoryBase
+{
+    private readonly string[] _permissions =
+        permissions ?? [Permissions.RagAsk, Permissions.DocumentsView];
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+
+        builder.ConfigureServices(services =>
+        {
+            services.AddPolicyTestAuthentication(_permissions, []);
+
+            RemoveService<IChatClient>(services);
+            RemoveService<IVectorStore>(services);
+            RemoveService<IReranker>(services);
+
+            var results = new List<SearchResult>
+            {
+                new() { Chunk = new DocumentChunk { Content = "Paris is the capital of France." }, RrfScore = 0.9 },
+                new() { Chunk = new DocumentChunk { Content = "France borders Spain." }, RrfScore = 0.8 },
+            };
+
+            var mockVectorStore = new Mock<IVectorStore>();
+            mockVectorStore
+                .Setup(v => v.HybridSearchAsync(
+                    It.IsAny<ReadOnlyMemory<float>>(),
+                    It.IsAny<string>(),
+                    It.IsAny<int>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(results);
+            services.AddSingleton<IVectorStore>(mockVectorStore.Object);
+
+            var mockReranker = new Mock<IReranker>();
+            mockReranker
+                .Setup(r => r.RerankAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<IReadOnlyList<SearchResult>>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(results);
+            services.AddSingleton<IReranker>(mockReranker.Object);
+
+            var mockChat = new Mock<IChatClient>();
+            mockChat
+                .Setup(c => c.GetStreamingResponseAsync(
+                    It.IsAny<IEnumerable<ChatMessage>>(),
+                    It.IsAny<ChatOptions?>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(StreamAnswerUpdates());
+
+            services.AddSingleton<IChatClient>(mockChat.Object);
+        });
+    }
+
+    private static async IAsyncEnumerable<ChatResponseUpdate> StreamAnswerUpdates()
+    {
+        yield return new ChatResponseUpdate(ChatRole.Assistant, "The capital of ");
+        yield return new ChatResponseUpdate(ChatRole.Assistant, "France is Paris.");
     }
 }
