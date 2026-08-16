@@ -277,6 +277,10 @@ toggle.addEventListener('click', function () {
 
   var emptyState = messages.querySelector('.chat-empty');
 
+  function scrollToBottom() {
+    messages.scrollTop = messages.scrollHeight;
+  }
+
   function createBubble(kind, text) {
     var bubble = document.createElement('div');
     bubble.className = 'msg-bubble ' + kind;
@@ -348,9 +352,11 @@ toggle.addEventListener('click', function () {
     userRow.className = 'msg-row msg-row-user';
     userRow.appendChild(createBubble('msg-user', query));
     messages.appendChild(userRow);
+    scrollToBottom();
 
     var answerBody = assistantRow();
     setPending(answerBody);
+    scrollToBottom();
     setBusy(true);
 
     // FormData includes Query, SelectedModelId and the antiforgery token.
@@ -368,6 +374,7 @@ toggle.addEventListener('click', function () {
         } else {
           renderError(answerBody, result.data.error || 'No se pudo generar una respuesta.');
         }
+        scrollToBottom();
       })
       .catch(function () {
         renderError(answerBody, 'No se pudo conectar con el servicio. Intente de nuevo.');
