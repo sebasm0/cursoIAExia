@@ -1,6 +1,7 @@
 using RAG.Application;
 using RAG.Application.Services;
 using RAG.Infrastructure;
+using RAG.Infrastructure.AI;
 using RAG.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
@@ -29,8 +30,19 @@ switch (aiProvider)
         var ollamaHttp = new HttpClient { Timeout = ollamaTimeout };
         builder.Services.AddKeyedSingleton<HttpClient>("ollama", ollamaHttp);
 
+        // Retry/backoff resilience (RETRY-1): wrap the Ollama chat client in a
+        // decorator that retries transient failures (connection drops, HTTP
+        // 5xx/429, timeouts) with exponential backoff before giving up, so a
+        // temporarily unavailable model no longer fails the user's request.
+        // Configurable via AI:Ollama:MaxRetries / AI:Ollama:RetryBaseDelayMs.
+        var retryOptions = new RetryOptions
+        {
+            MaxRetries = builder.Configuration.GetValue("AI:Ollama:MaxRetries", 2),
+            BaseDelay = TimeSpan.FromMilliseconds(
+                builder.Configuration.GetValue("AI:Ollama:RetryBaseDelayMs", 500)),
+        };
         builder.Services.AddSingleton<IChatClient>(
-            new OllamaChatClient(ollamaBaseUrl, chatModel, ollamaHttp));
+            new RetryingChatClient(new OllamaChatClient(ollamaBaseUrl, chatModel, ollamaHttp), retryOptions));
         builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
             new OllamaEmbeddingGenerator(ollamaBaseUrl, embeddingModel));
 
