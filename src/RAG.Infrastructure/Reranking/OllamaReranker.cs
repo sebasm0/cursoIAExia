@@ -15,6 +15,7 @@ public sealed class OllamaReranker(IChatClient chatClient) : IReranker
     public async Task<IReadOnlyList<SearchResult>> RerankAsync(
         string query,
         IReadOnlyList<SearchResult> results,
+        string? modelId = null,
         CancellationToken ct = default)
     {
         if (results.Count == 0)
@@ -24,8 +25,11 @@ public sealed class OllamaReranker(IChatClient chatClient) : IReranker
 
         var prompt = BuildRerankPrompt(query, candidates);
 
-        // Use the extension method that accepts a plain string
-        var response = await chatClient.GetResponseAsync(prompt, cancellationToken: ct);
+        // Route the rerank chat call to the selected model (latency fix): pass
+        // ChatOptions with ModelId when resolved; when null/blank, omit options
+        // so Ollama uses the chat client's default model.
+        ChatOptions? options = string.IsNullOrWhiteSpace(modelId) ? null : new ChatOptions { ModelId = modelId };
+        var response = await chatClient.GetResponseAsync(prompt, options, ct);
         var scores = ParseScores(response.Text ?? "", candidates.Count);
 
         for (int i = 0; i < candidates.Count; i++)

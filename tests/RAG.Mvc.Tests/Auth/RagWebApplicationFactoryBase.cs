@@ -85,6 +85,7 @@ public abstract class RagWebApplicationFactoryBase : WebApplicationFactory<Progr
                 .Setup(r => r.RerankAsync(
                     It.IsAny<string>(),
                     It.IsAny<IReadOnlyList<SearchResult>>(),
+                    It.IsAny<string?>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([]);
             services.AddSingleton<IReranker>(mockReranker.Object);

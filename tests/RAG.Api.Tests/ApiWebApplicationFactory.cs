@@ -114,6 +114,7 @@ public class ApiWebApplicationFactory : WebApplicationFactory<Program>
                 .Setup(r => r.RerankAsync(
                     It.IsAny<string>(),
                     It.IsAny<IReadOnlyList<SearchResult>>(),
+                    It.IsAny<string?>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([]);
             services.AddSingleton<IReranker>(mockReranker.Object);

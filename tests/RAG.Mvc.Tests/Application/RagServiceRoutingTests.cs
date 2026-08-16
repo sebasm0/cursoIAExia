@@ -13,6 +13,8 @@ namespace RAG.Mvc.Tests.Application;
 /// <c>ChatOptions.ModelId</c>, null/blank and unknown ids fall back to the
 /// default model, and the retrieval pipeline runs identically for any selection,
 /// guarding the embeddings and reranker contracts, ASEL-5/6).
+/// The same resolved model must also drive the reranker's chat call, so the
+/// latency fix (rerank no longer pinned to the default slow model) is covered.
 /// </summary>
 public class RagServiceRoutingTests
 {
@@ -54,6 +56,44 @@ public class RagServiceRoutingTests
     }
 
     [Fact]
+    public async Task AskAsync_KnownModelId_SetsModelIdOnRerank()
+    {
+        var harness = new RoutingHarness();
+
+        await harness.Service.AskAsync("What is the capital of France?", modelId: "fast");
+
+        // Latency fix contract: the resolved model must reach the reranker, not
+        // only the final generation call (rerank previously ran on the default
+        // slow model regardless of selection).
+        Assert.Equal("qwen2.5:1.5b", harness.CapturedRerankOptions?.ModelId);
+        // One resolution drives both LLM calls: rerank and generation agree.
+        Assert.Equal(harness.CapturedOptions?.ModelId, harness.CapturedRerankOptions?.ModelId);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task AskAsync_NullOrBlankModelId_RerankUsesDefaultModel(string? modelId)
+    {
+        var harness = new RoutingHarness();
+
+        await harness.Service.AskAsync("Question?", modelId: modelId);
+
+        Assert.Equal("phi3:mini", harness.CapturedRerankOptions?.ModelId);
+    }
+
+    [Fact]
+    public async Task AskAsync_UnknownModelId_RerankFallsBackToDefaultModel()
+    {
+        var harness = new RoutingHarness();
+
+        await harness.Service.AskAsync("Question?", modelId: "not-in-catalog");
+
+        Assert.Equal("phi3:mini", harness.CapturedRerankOptions?.ModelId);
+    }
+
+    [Fact]
     public async Task AskAsync_Prompt_InstructsToAnswerInTheQuestionLanguage()
     {
         var harness = new RoutingHarness();
@@ -88,6 +128,7 @@ public class RagServiceRoutingTests
         harness.Reranker.Verify(r => r.RerankAsync(
             It.IsAny<string>(),
             It.IsAny<IReadOnlyList<SearchResult>>(),
+            It.IsAny<string?>(),
             It.IsAny<CancellationToken>()), Times.Exactly(3));
     }
 }
@@ -104,6 +145,7 @@ internal sealed class RoutingHarness
     public Mock<IVectorStore> VectorStore { get; }
     public Mock<IReranker> Reranker { get; }
     public ChatOptions? CapturedOptions { get; private set; }
+    public ChatOptions? CapturedRerankOptions { get; private set; }
     public string? CapturedPrompt { get; private set; }
     public RagService Service { get; }
 
@@ -138,7 +180,10 @@ internal sealed class RoutingHarness
             .Setup(r => r.RerankAsync(
                 It.IsAny<string>(),
                 It.IsAny<IReadOnlyList<SearchResult>>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
+            .Callback<string, IReadOnlyList<SearchResult>, string?, CancellationToken>(
+                (_, _, modelId, _) => CapturedRerankOptions = new ChatOptions { ModelId = modelId })
             .ReturnsAsync(results);
 
         var chat = new Mock<IChatClient>();

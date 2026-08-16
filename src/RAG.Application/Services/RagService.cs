@@ -17,6 +17,14 @@ public class RagService(
         string? modelId = null,
         CancellationToken ct = default)
     {
+        // Per-request model routing (ASEL-2): resolve the model id against the
+        // catalog allow-list ONCE, so the same resolved model drives both the
+        // reranker chat call and the final generation (latency fix: rerank no
+        // longer runs on the default slow model). Retrieval is identical
+        // regardless of selection (ASEL-4/5/6); null/blank/unknown resolve to
+        // the default assistant.
+        var model = assistantCatalog.Resolve(modelId);
+
         // 1. Generar embedding de la consulta
         var queryEmbeddings = await embeddingGenerator.GenerateAsync(new[] { query }, cancellationToken: ct);
 
@@ -24,8 +32,8 @@ public class RagService(
         var results = await vectorStore.HybridSearchAsync(
             queryEmbeddings[0].Vector, query, topK: topKRetrieve, ct);
 
-        // 3. Reranking con LLM
-        var reranked = await reranker.RerankAsync(query, results, ct);
+        // 3. Reranking con LLM, usando el modelo seleccionado
+        var reranked = await reranker.RerankAsync(query, results, model.Model, ct);
         var topResults = reranked.Take(topKRank).ToList();
 
         // 4. Generar respuesta con contexto aumentado
@@ -46,11 +54,6 @@ public class RagService(
 
             ## Answer:
             """;
-
-        // Per-request model routing (ASEL-2): resolve the model id against the
-        // catalog allow-list so only a catalog model ever reaches the chat
-        // client. Retrieval above is identical regardless of selection (ASEL-4/5/6).
-        var model = assistantCatalog.Resolve(modelId);
 
         var response = await chatClient.GetResponseAsync(
             prompt, new ChatOptions { ModelId = model.Model }, ct);
