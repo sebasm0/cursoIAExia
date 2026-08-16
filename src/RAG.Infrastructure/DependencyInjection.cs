@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RAG.Domain.Abstractions;
+using RAG.Infrastructure.Chat;
 using RAG.Infrastructure.Chunking;
 using RAG.Infrastructure.Parsing;
 using RAG.Infrastructure.Reranking;
@@ -18,6 +19,7 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException("ConnectionStrings:PostgreSQL is required");
 
         services.AddSingleton<IVectorStore>(_ => new PgVectorStore(connectionString));
+        services.AddSingleton<IChatHistoryStore>(_ => new PgChatHistoryStore(connectionString));
         services.AddSingleton<IChunker, SemanticChunker>();
         services.AddSingleton<IReranker, OllamaReranker>();
 

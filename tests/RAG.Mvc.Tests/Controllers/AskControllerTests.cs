@@ -43,11 +43,12 @@ public class AskControllerTests
     public async Task Ask_Post_EmptyQuery_ReturnsViewWithValidationError()
     {
         // Arrange — empty query hits ModelState check BEFORE service call,
-        // so we can pass null for the service. The catalog is real (design D3).
+        // so we can pass null for the services. The catalog is real (design D3).
         var controller = new AskController(
             null!,
             Mock.Of<ILogger<AskController>>(),
-            new AssistantCatalog("phi3:mini", null));
+            new AssistantCatalog("phi3:mini", null),
+            null!); // ChatHistoryService — not exercised by the ModelState-only path
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()

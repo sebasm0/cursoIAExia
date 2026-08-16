@@ -74,7 +74,9 @@ public static class TestAuthExtensions
     public static IServiceCollection AddTestAuthentication(
         this IServiceCollection services,
         string[] permissions,
-        string[] roles)
+        string[] roles,
+        string? userId = null,
+        string? userName = null)
     {
         services.AddAuthentication(TestAuthHandler.SchemeName)
             .AddScheme<TestAuthOptions, TestAuthHandler>(
@@ -83,6 +85,11 @@ public static class TestAuthExtensions
                 {
                     options.Permissions = permissions;
                     options.Roles = roles;
+                    // Chat history endpoints parse NameIdentifier as a Guid
+                    // (CH-6 401 path), so tests exercising them pass real Guids;
+                    // null keeps the legacy "test-user-id" default untouched.
+                    if (userId is not null) options.UserId = userId;
+                    if (userName is not null) options.UserName = userName;
                 });
 
         return services;
@@ -99,9 +106,11 @@ public static class TestAuthExtensions
     public static IServiceCollection AddPolicyTestAuthentication(
         this IServiceCollection services,
         string[] permissions,
-        string[] roles)
+        string[] roles,
+        string? userId = null,
+        string? userName = null)
     {
-        services.AddTestAuthentication(permissions, roles);
+        services.AddTestAuthentication(permissions, roles, userId, userName);
 
         services.Configure<AuthenticationOptions>(options =>
         {

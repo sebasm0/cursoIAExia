@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -5,6 +6,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using rag.Models;
 using RAG.Application.Services;
+using RAG.Domain.Chat;
 using RAG.Infrastructure.Identity;
 
 namespace rag.Controllers;
@@ -20,12 +22,14 @@ public class AskController : Controller
     private readonly RagService _ragService;
     private readonly ILogger<AskController> _logger;
     private readonly AssistantCatalog _catalog;
+    private readonly ChatHistoryService _chatHistoryService;
 
-    public AskController(RagService ragService, ILogger<AskController> logger, AssistantCatalog catalog)
+    public AskController(RagService ragService, ILogger<AskController> logger, AssistantCatalog catalog, ChatHistoryService chatHistoryService)
     {
         _ragService = ragService;
         _logger = logger;
         _catalog = catalog;
+        _chatHistoryService = chatHistoryService;
     }
 
     /// <summary>
@@ -188,4 +192,81 @@ public class AskController : Controller
             await WriteEventAsync(new { error = "El servicio RAG está temporalmente no disponible. Intente de nuevo más tarde." });
         }
     }
+
+    /// <summary>
+    /// DocsChat: per-user chat history (spec CH-5). Returns the caller's 50 most
+    /// recent messages ascending by <c>created_at</c>, each shaped
+    /// <c>{id, role, content, createdAt, modelId, sources}</c> — sources as
+    /// <c>[]</c> when absent, modelId as <c>null</c> when absent. The user id
+    /// always comes from the NameIdentifier claim; a non-Guid claim yields 401.
+    /// Dormant until the frontend slice lands (no consumer yet).
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> History(CancellationToken ct)
+    {
+        var userId = UserIdFromPrincipal();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var messages = await _chatHistoryService.GetRecentAsync(userId.Value, ct);
+
+        // D7: mapping ChatSource → SourceRef lives only here, so the wire shape
+        // stays identical to the AskStream done event (fileName/snippet/page).
+        var items = messages
+            .Select(m => new ChatHistoryItem(
+                m.Id,
+                m.Role,
+                m.Content,
+                m.CreatedAt,
+                m.ModelId,
+                m.Sources.Select(s => new SourceRef(s.FileName, s.Snippet, s.Page)).ToList()))
+            .ToList();
+
+        return Json(items);
+    }
+
+    /// <summary>
+    /// DocsChat: persist a chat message (spec CH-6, design D9). JSON body
+    /// <c>{role, content, modelId?, sources?}</c> with the antiforgery token in
+    /// the <c>RequestVerificationToken</c> header — a missing token yields 400
+    /// BEFORE any validation or persistence (per-action posture). Success: 201
+    /// <c>{id, createdAt}</c> with the id and the DB-clock timestamp; invalid
+    /// role/content: 400 <c>{error}</c>, nothing persisted; non-Guid
+    /// NameIdentifier claim: 401. Dormant until the frontend slice lands.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> History([FromBody] ChatHistoryRequest request, CancellationToken ct)
+    {
+        var userId = UserIdFromPrincipal();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await _chatHistoryService.AddAsync(
+            userId.Value, request.Role, request.Content, request.ModelId, request.Sources, ct);
+
+        if (!result.IsValid || result.Message is null)
+        {
+            return new JsonResult(new { error = result.ErrorMessage ?? "Mensaje inválido." })
+            {
+                StatusCode = StatusCodes.Status400BadRequest,
+            };
+        }
+
+        return new JsonResult(new { id = result.Message.Id, createdAt = result.Message.CreatedAt })
+        {
+            StatusCode = StatusCodes.Status201Created,
+        };
+    }
+
+    /// <summary>
+    /// The authenticated user id: parsed from the NameIdentifier claim (CH-3);
+    /// null when the claim is missing or not a Guid, which callers turn into 401.
+    /// </summary>
+    private Guid? UserIdFromPrincipal()
+        => Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
 }
