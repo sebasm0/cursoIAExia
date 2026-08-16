@@ -94,7 +94,7 @@ public class RagServiceRoutingTests
     }
 
     [Fact]
-    public async Task AskAsync_Prompt_InstructsToAnswerInTheQuestionLanguage()
+    public async Task AskAsync_SpanishQuery_PromptInstructsSpanish()
     {
         var harness = new RoutingHarness();
 
@@ -102,7 +102,34 @@ public class RagServiceRoutingTests
 
         var prompt = harness.CapturedPrompt;
         Assert.NotNull(prompt);
-        Assert.Contains("same language", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Answer in Spanish.", prompt);
+    }
+
+    [Fact]
+    public async Task AskAsync_EnglishQuery_PromptInstructsEnglish()
+    {
+        var harness = new RoutingHarness();
+
+        await harness.Service.AskAsync("What is the capital of France?");
+
+        var prompt = harness.CapturedPrompt;
+        Assert.NotNull(prompt);
+        Assert.Contains("Answer in English.", prompt);
+    }
+
+    [Fact]
+    public async Task AskAsync_PlainQueryWithoutMarkers_DefaultsToSpanish()
+    {
+        var harness = new RoutingHarness();
+
+        // No accent marks, no Spanish punctuation: still defaults to Spanish
+        // because the app UI is Spanish and small models follow an explicit
+        // language instruction more reliably.
+        await harness.Service.AskAsync("capital de francia");
+
+        var prompt = harness.CapturedPrompt;
+        Assert.NotNull(prompt);
+        Assert.Contains("Answer in Spanish.", prompt);
     }
 
     [Fact]

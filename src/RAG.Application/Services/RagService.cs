@@ -39,12 +39,17 @@ public class RagService(
         // 4. Generar respuesta con contexto aumentado
         var context = string.Join("\n\n---\n\n", topResults.Select(r => r.Chunk.Content));
 
+        var language = ResolveResponseLanguage(query);
+        var languageInstruction = language == "en"
+            ? "Answer in English."
+            : "Answer in Spanish.";
+
         var prompt = $"""
             You are an expert document analyst assistant.
             Answer the question STRICTLY based on the provided context.
             If the context does not contain enough information, say it explicitly.
             Include citations to relevant fragments when possible.
-            Answer in the same language as the question.
+            {languageInstruction}
 
             ## Context:
             {context}
@@ -59,5 +64,26 @@ public class RagService(
             prompt, new ChatOptions { ModelId = model.Model }, ct);
 
         return response.Text ?? "No se pudo generar una respuesta.";
+    }
+
+    /// <summary>
+    /// Deterministic response-language routing (ASEL-9): English queries are
+    /// answered in English, everything else defaults to Spanish because the app
+    /// UI is Spanish and small local models follow an explicit language
+    /// instruction more reliably than "answer in the same language".
+    /// </summary>
+    private static string ResolveResponseLanguage(string query)
+    {
+        if (query.Contains("what", StringComparison.OrdinalIgnoreCase) ||
+            query.Contains("how", StringComparison.OrdinalIgnoreCase) ||
+            query.Contains("why", StringComparison.OrdinalIgnoreCase) ||
+            query.Contains("the ", StringComparison.OrdinalIgnoreCase) ||
+            query.Contains(" is ", StringComparison.OrdinalIgnoreCase) ||
+            query.Contains(" are ", StringComparison.OrdinalIgnoreCase))
+        {
+            return "en";
+        }
+
+        return "es";
     }
 }
