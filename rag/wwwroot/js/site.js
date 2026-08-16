@@ -251,14 +251,19 @@ toggle.addEventListener('click', function () {
   });
 })();
 
-// DocsChat: the floating chat in Documents submits over fetch to the AskJson
-// endpoint (data-ask-json-url) and renders the answer in the chat panel in
-// place — no page navigation. The antiforgery token travels as a form field
-// (FormData picks up the hidden input), preserving the same
-// [ValidateAntiForgeryToken] contract as every other POST. All dynamic text is
-// set via textContent (never innerHTML) so user queries and LLM answers are
-// rendered as plain text. Enter-to-send / Shift+Enter-newline behavior is
-// handled by the generic .chat-composer block above (requestSubmit).
+// DocsChat: the floating chat in Documents submits over fetch to the AskStream
+// endpoint (data-ask-stream-url) and renders the answer in the chat panel in
+// place — no page navigation. The endpoint replies with Server-Sent Events
+// (text/event-stream): each event is a JSON payload carrying a text delta, a
+// terminal "done" (with the assistant label) or a terminal "error". The
+// ReadableStream reader accumulates the answer into a single bubble as the
+// chunks arrive, so text appears while it is still being generated. The
+// antiforgery token travels as a form field (FormData picks up the hidden
+// input), preserving the same [ValidateAntiForgeryToken] contract as every
+// other POST. All dynamic text is set via textContent (never innerHTML) so
+// user queries and LLM answers are rendered as plain text. Enter-to-send /
+// Shift+Enter-newline behavior is handled by the generic .chat-composer block
+// above (requestSubmit).
 (function () {
   'use strict';
 
@@ -267,11 +272,11 @@ toggle.addEventListener('click', function () {
     return;
   }
 
-  var jsonUrl = form.getAttribute('data-ask-json-url');
+  var streamUrl = form.getAttribute('data-ask-stream-url');
   var messages = document.getElementById('docsChatPanel');
   var sendBtn = form.querySelector('.chat-send');
   var textarea = form.querySelector('textarea');
-  if (!jsonUrl || !messages || !sendBtn || !textarea) {
+  if (!streamUrl || !messages || !sendBtn || !textarea) {
     return;
   }
 
@@ -307,20 +312,6 @@ toggle.addEventListener('click', function () {
     return body;
   }
 
-  function setPending(body) {
-    body.textContent = '';
-    body.appendChild(createBubble('msg-assistant', 'Generando…'));
-  }
-
-  function renderAnswer(body, answer, usedModel) {
-    body.textContent = '';
-    body.appendChild(createBubble('msg-assistant', answer));
-    var credit = document.createElement('div');
-    credit.className = 'small text-muted mt-1';
-    credit.textContent = 'Generado por ' + usedModel;
-    body.appendChild(credit);
-  }
-
   function renderError(body, error) {
     body.textContent = '';
     body.appendChild(createBubble('msg-error', error));
@@ -329,6 +320,70 @@ toggle.addEventListener('click', function () {
   function setBusy(busy) {
     sendBtn.disabled = busy;
     sendBtn.classList.toggle('is-loading', busy);
+  }
+
+  // Reads the SSE response body via fetch ReadableStream and dispatches each
+  // event. Resolves with the assistant label when the terminal "done" event
+  // arrives; rejects with the server error message on an "error" event and with
+  // a generic message when the stream ends without a terminal event (cut mid-
+  // answer) or when an event cannot be parsed.
+  function consumeEventStream(body, appendDelta) {
+    var reader = body.getReader();
+    var decoder = new TextDecoder();
+    var buffer = '';
+
+    function parseEvent(block) {
+      var data = block.split('\n')
+        .filter(function (line) { return line.indexOf('data:') === 0; })
+        .map(function (line) { return line.slice(5).trim(); })
+        .join('\n');
+      if (!data) {
+        return null;
+      }
+      try {
+        return JSON.parse(data);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function pump(resolve, reject) {
+      return reader.read().then(function (result) {
+        if (result.done) {
+          // EOF without a terminal event means the stream was cut short.
+          reject(new Error('No se pudo conectar con el servicio. Intente de nuevo.'));
+          return;
+        }
+
+        buffer += decoder.decode(result.value, { stream: true });
+
+        var blocks = buffer.split(/\r?\n\r?\n/);
+        buffer = blocks.pop();
+        for (var i = 0; i < blocks.length; i++) {
+          var event = parseEvent(blocks[i]);
+          if (!event) {
+            continue;
+          }
+          if (event.error) {
+            reject(new Error(event.error));
+            return;
+          }
+          if (event.done) {
+            resolve(event.usedModel || '');
+            return;
+          }
+          if (typeof event.delta === 'string') {
+            appendDelta(event.delta);
+          }
+        }
+
+        return pump(resolve, reject);
+      });
+    }
+
+    return new Promise(function (resolve, reject) {
+      pump(resolve, reject);
+    });
   }
 
   form.addEventListener('submit', function (e) {
@@ -354,30 +409,61 @@ toggle.addEventListener('click', function () {
     messages.appendChild(userRow);
     scrollToBottom();
 
+    // The assistant bubble is created ONCE; its textContent accumulates the
+    // deltas as they stream in. Scroll is coalesced per animation frame so a
+    // fast stream does not trigger a layout pass per token.
     var answerBody = assistantRow();
-    setPending(answerBody);
+    var answerBubble = createBubble('msg-assistant', 'Generando…');
+    answerBody.appendChild(answerBubble);
+    var started = false;
+    var scrollQueued = false;
+
+    function appendDelta(delta) {
+      if (!started) {
+        answerBubble.textContent = delta;
+        started = true;
+      } else {
+        answerBubble.textContent += delta;
+      }
+      if (!scrollQueued) {
+        scrollQueued = true;
+        requestAnimationFrame(function () {
+          scrollQueued = false;
+          scrollToBottom();
+        });
+      }
+    }
+
     scrollToBottom();
     setBusy(true);
 
     // FormData includes Query, SelectedModelId and the antiforgery token.
     var payload = new URLSearchParams(new FormData(form));
 
-    fetch(jsonUrl, { method: 'POST', body: payload })
+    fetch(streamUrl, { method: 'POST', body: payload })
       .then(function (response) {
-        return response.json().then(function (data) {
-          return { ok: response.ok, data: data };
-        });
-      })
-      .then(function (result) {
-        if (result.ok && typeof result.data.answer === 'string') {
-          renderAnswer(answerBody, result.data.answer, result.data.usedModel || '');
-        } else {
-          renderError(answerBody, result.data.error || 'No se pudo generar una respuesta.');
+        if (!response.ok) {
+          // Pre-stream rejections (e.g. 400 empty query) arrive as JSON.
+          return response.json().then(function (data) {
+            throw new Error(data && data.error ? data.error : 'No se pudo generar una respuesta.');
+          });
         }
+        if (!response.body) {
+          throw new Error('No se pudo conectar con el servicio. Intente de nuevo.');
+        }
+        return consumeEventStream(response.body, appendDelta);
+      })
+      .then(function (usedModel) {
+        // done event: append the attribution credit and settle the layout.
+        var credit = document.createElement('div');
+        credit.className = 'small text-muted mt-1';
+        credit.textContent = 'Generado por ' + usedModel;
+        answerBody.appendChild(credit);
         scrollToBottom();
       })
-      .catch(function () {
-        renderError(answerBody, 'No se pudo conectar con el servicio. Intente de nuevo.');
+      .catch(function (err) {
+        renderError(answerBody, (err && err.message) || 'No se pudo conectar con el servicio. Intente de nuevo.');
+        scrollToBottom();
       })
       .finally(function () {
         setBusy(false);

@@ -292,6 +292,136 @@ public class AskControllerTests
         var error = root.GetProperty("error").GetString();
         Assert.Contains("no disponible", error, StringComparison.OrdinalIgnoreCase);
     }
+
+    // ── DocsChat-3: AskStream SSE streaming endpoint for the Documents chat ──
+    // Wire contract: Content-Type text/event-stream; one data event per delta
+    // ({"delta":"text"}), a terminal {"done":true,"usedModel":"label"} event, and
+    // a terminal {"error":"message"} event when the pipeline fails mid-stream.
+    // An empty query is rejected with 400 JSON BEFORE the stream starts.
+
+    /// <summary>
+    /// Parses an SSE body into its <c>data:</c> payloads (one JSON string per
+    /// event), ignoring blank heartbeats.
+    /// </summary>
+    private static async Task<List<string>> ReadSseEventsAsync(HttpResponseMessage response)
+    {
+        var body = await response.Content.ReadAsStringAsync();
+        var events = new List<string>();
+        foreach (var block in body.Split("\n\n", StringSplitOptions.RemoveEmptyEntries))
+        {
+            var data = string.Join("\n", block.Split('\n')
+                .Where(line => line.StartsWith("data:", StringComparison.Ordinal))
+                .Select(line => line["data:".Length..].Trim()));
+            if (data.Length > 0)
+            {
+                events.Add(data);
+            }
+        }
+
+        return events;
+    }
+
+    [Fact]
+    public async Task AskStream_Post_ValidQuery_StreamsDeltasThenDoneEvent()
+    {
+        await using var factory = new StreamingRagWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        // Act — select the "fast" assistant (qwen2.5:1.5b) on the form.
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/AskStream", token,
+            ("Query", "What is the capital of France?"),
+            ("SelectedModelId", "fast")));
+
+        // Assert — an event stream (never a view) carrying the streamed answer.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
+
+        var events = await ReadSseEventsAsync(response);
+
+        // The deltas arrive in order and concatenate to the full answer.
+        var deltaEvents = events.Where(e => e.Contains("\"delta\"")).ToList();
+        Assert.Equal(2, deltaEvents.Count);
+        var answer = string.Concat(deltaEvents.Select(e =>
+            JsonDocument.Parse(e).RootElement.GetProperty("delta").GetString()));
+        Assert.Equal("The capital of France is Paris.", answer);
+
+        // The stream terminates with the done event carrying the attribution.
+        var doneEvent = Assert.Single(events.Where(e => e.Contains("\"done\"")));
+        var done = JsonDocument.Parse(doneEvent).RootElement;
+        Assert.True(done.GetProperty("done").GetBoolean());
+        Assert.Equal("Qwen 2.5 1.5B", done.GetProperty("usedModel").GetString());
+    }
+
+    [Fact]
+    public async Task AskStream_Post_EmptyQuery_ReturnsBadRequestJsonError()
+    {
+        await using var factory = new StreamingRagWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        // Act — blank query hits the guard BEFORE any stream starts.
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/AskStream", token, ("Query", "   ")));
+
+        // Assert — HTTP 400 with a JSON error, never an event stream.
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+
+        var root = await ReadJsonAsync(response);
+        var error = root.GetProperty("error").GetString();
+        Assert.Contains("pregunta", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AskStream_Post_UnknownModelId_DoneEventUsesDefaultAssistant()
+    {
+        await using var factory = new StreamingRagWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        // Act — tampered model id outside the catalog allow-list (ASEL-4).
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/AskStream", token,
+            ("Query", "What is the capital of France?"),
+            ("SelectedModelId", "not-in-catalog")));
+
+        // Assert — resolves to the default assistant and attributes it.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var events = await ReadSseEventsAsync(response);
+        var doneEvent = Assert.Single(events.Where(e => e.Contains("\"done\"")));
+        var done = JsonDocument.Parse(doneEvent).RootElement;
+        Assert.Equal("Phi3 Mini", done.GetProperty("usedModel").GetString());
+    }
+
+    [Fact]
+    public async Task AskStream_Post_RagFailure_StreamsErrorEventAndCloses()
+    {
+        await using var factory = new FailingStreamingRagWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var token = await AccountTestHelpers.GetAntiforgeryTokenAsync(client, "/Ask");
+
+        // Act — the streaming chat client throws after the first delta.
+        var response = await client.SendAsync(AccountTestHelpers.CreatePost(
+            "/Ask/AskStream", token, ("Query", "Is the service up?")));
+
+        // Assert — the stream stays text/event-stream and terminates with an
+        // error event; the page never navigates and no stack trace leaks.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
+
+        var events = await ReadSseEventsAsync(response);
+        var errorEvent = Assert.Single(events.Where(e => e.Contains("\"error\"")));
+        var error = JsonDocument.Parse(errorEvent).RootElement.GetProperty("error").GetString();
+        Assert.Contains("no disponible", error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("InvalidOperationException", error);
+    }
 }
 
 /// <summary>
@@ -325,5 +455,77 @@ public class CustomRagWebApplicationFactory : RagWebApplicationFactoryBase
 
             services.AddSingleton<IChatClient>(mockChat.Object);
         });
+    }
+}
+
+/// <summary>
+/// Factory whose chat client streams the canned answer in deltas, exercising the
+/// AskStream SSE endpoint contract (DocsChat-3).
+/// </summary>
+public class StreamingRagWebApplicationFactory : RagWebApplicationFactoryBase
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+
+        builder.ConfigureServices(services =>
+        {
+            // The Ask endpoints are gated by rag.ask (ASK-8) — authenticate the
+            // integration client with that permission.
+            services.AddPolicyTestAuthentication([Permissions.RagAsk], []);
+
+            RemoveService<IChatClient>(services);
+
+            var mockChat = new Mock<IChatClient>();
+            mockChat
+                .Setup(c => c.GetStreamingResponseAsync(
+                    It.IsAny<IEnumerable<ChatMessage>>(),
+                    It.IsAny<ChatOptions?>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(StreamAnswerUpdates());
+
+            services.AddSingleton<IChatClient>(mockChat.Object);
+        });
+    }
+
+    private static async IAsyncEnumerable<ChatResponseUpdate> StreamAnswerUpdates()
+    {
+        yield return new ChatResponseUpdate(ChatRole.Assistant, "The capital of ");
+        yield return new ChatResponseUpdate(ChatRole.Assistant, "France is Paris.");
+    }
+}
+
+/// <summary>
+/// Factory whose streaming chat client yields one delta and then throws, so the
+/// mid-stream RAG failure path of AskStream can be exercised.
+/// </summary>
+public class FailingStreamingRagWebApplicationFactory : RagWebApplicationFactoryBase
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+
+        builder.ConfigureServices(services =>
+        {
+            services.AddPolicyTestAuthentication([Permissions.RagAsk], []);
+
+            RemoveService<IChatClient>(services);
+
+            var mockChat = new Mock<IChatClient>();
+            mockChat
+                .Setup(c => c.GetStreamingResponseAsync(
+                    It.IsAny<IEnumerable<ChatMessage>>(),
+                    It.IsAny<ChatOptions?>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(FailingUpdates());
+
+            services.AddSingleton<IChatClient>(mockChat.Object);
+        });
+    }
+
+    private static async IAsyncEnumerable<ChatResponseUpdate> FailingUpdates()
+    {
+        yield return new ChatResponseUpdate(ChatRole.Assistant, "Partial");
+        throw new InvalidOperationException("ollama unavailable");
     }
 }

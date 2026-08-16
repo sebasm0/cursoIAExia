@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.AI;
 using RAG.Domain.Abstractions;
 
@@ -39,12 +40,63 @@ public class RagService(
         // 4. Generar respuesta con contexto aumentado
         var context = string.Join("\n\n---\n\n", topResults.Select(r => r.Chunk.Content));
 
+        var prompt = BuildPrompt(query, context);
+
+        var response = await chatClient.GetResponseAsync(
+            prompt, new ChatOptions { ModelId = model.Model }, ct);
+
+        return response.Text ?? "No se pudo generar una respuesta.";
+    }
+
+    /// <summary>
+    /// Streaming variant of <see cref="AskAsync"/> (DocsChat-3): runs the
+    /// identical retrieval pipeline (ASEL-4/5/6) and yields the chat response as
+    /// it is generated, one string per text delta, so callers can render tokens
+    /// as they arrive instead of waiting for the full answer.
+    /// </summary>
+    public async IAsyncEnumerable<string> AskStreamingAsync(
+        string query,
+        int topKRetrieve = 20,
+        int topKRank = 5,
+        string? modelId = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var model = assistantCatalog.Resolve(modelId);
+
+        var queryEmbeddings = await embeddingGenerator.GenerateAsync(new[] { query }, cancellationToken: ct);
+        var results = await vectorStore.HybridSearchAsync(
+            queryEmbeddings[0].Vector, query, topK: topKRetrieve, ct);
+        var reranked = await reranker.RerankAsync(query, results, model.Model, ct);
+        var topResults = reranked.Take(topKRank).ToList();
+
+        var context = string.Join("\n\n---\n\n", topResults.Select(r => r.Chunk.Content));
+        var prompt = BuildPrompt(query, context);
+
+        await foreach (var update in chatClient.GetStreamingResponseAsync(
+                           prompt, new ChatOptions { ModelId = model.Model }, ct))
+        {
+            // Some providers emit non-text updates (role/finish signals); only
+            // text deltas become visible output.
+            if (!string.IsNullOrEmpty(update.Text))
+            {
+                yield return update.Text;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Builds the system prompt shared by <see cref="AskAsync"/> and
+    /// <see cref="AskStreamingAsync"/>: strict context grounding, citation
+    /// instruction and the deterministic language instruction (ASEL-9).
+    /// </summary>
+    private static string BuildPrompt(string query, string context)
+    {
         var language = ResolveResponseLanguage(query);
         var languageInstruction = language == "en"
             ? "Answer in English."
             : "Answer in Spanish.";
 
-        var prompt = $"""
+        return $"""
             You are an expert document analyst assistant.
             Answer the question STRICTLY based on the provided context.
             If the context does not contain enough information, say it explicitly.
@@ -59,11 +111,6 @@ public class RagService(
 
             ## Answer:
             """;
-
-        var response = await chatClient.GetResponseAsync(
-            prompt, new ChatOptions { ModelId = model.Model }, ct);
-
-        return response.Text ?? "No se pudo generar una respuesta.";
     }
 
     /// <summary>

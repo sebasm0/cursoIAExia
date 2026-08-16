@@ -47,7 +47,7 @@ public class DocumentsViewRenderTests
         Assert.Contains("Llama 3.2 1B", body);
     }
 
-    // ── DocsChat-2: floating chat form carries the AJAX hook for AskJson ──
+    // ── DocsChat-2/3: floating chat form carries the AJAX hook for AskStream ──
 
     [Fact]
     public async Task Documents_Index_RendersFloatingChatFormWithAjaxHook()
@@ -61,9 +61,10 @@ public class DocumentsViewRenderTests
         var body = await response.Content.ReadAsStringAsync();
 
         // The form exposes the id site.js binds the fetch handler to, and the
-        // JSON endpoint it posts to (the answer renders in-place, no navigation).
+        // SSE streaming endpoint it posts to (the answer renders in-place while
+        // it is generated — no navigation).
         Assert.Contains("id=\"docs-chat-form\"", body);
-        Assert.Contains("data-ask-json-url=\"/Ask/AskJson\"", body);
+        Assert.Contains("data-ask-stream-url=\"/Ask/AskStream\"", body);
         // The message panel the JS renders the bubbles into stays on the page.
         Assert.Contains("id=\"docsChatPanel\"", body);
         // Progressive enhancement preserved: with JavaScript disabled the native

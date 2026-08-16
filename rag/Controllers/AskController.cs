@@ -1,5 +1,7 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using rag.Models;
 using RAG.Application.Services;
@@ -102,6 +104,67 @@ public class AskController : Controller
             {
                 StatusCode = StatusCodes.Status502BadGateway,
             };
+        }
+    }
+
+    /// <summary>
+    /// DocsChat: SSE streaming endpoint for the floating chat in Documents/Index
+    /// (DocsChat-3). Runs the same RAG pipeline and catalog validation as
+    /// <see cref="AskJson"/> (ASK-14, ASEL-4) but delivers the answer
+    /// incrementally as server-sent events, so the chat renders text as it is
+    /// generated instead of waiting for the full response.
+    ///
+    /// Wire contract:
+    /// <code>
+    /// Content-Type: text/event-stream
+    /// data: {"delta":"text"}                    (one per generated text chunk)
+    /// data: {"done":true,"usedModel":"label"}   (terminal success event)
+    /// data: {"error":"message"}                 (terminal failure event)
+    /// </code>
+    /// An empty query is rejected with a 400 JSON error BEFORE the stream starts;
+    /// blank/unknown model ids resolve to the default assistant (ASEL-2/4).
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task AskStream(AskViewModel model, CancellationToken ct)
+    {
+        _catalog.TryResolve(model.SelectedModelId, out var assistant);
+
+        if (string.IsNullOrWhiteSpace(model.Query))
+        {
+            Response.StatusCode = StatusCodes.Status400BadRequest;
+            Response.ContentType = "application/json";
+            await Response.WriteAsync(
+                JsonSerializer.Serialize(new { error = "Por favor, ingrese una pregunta." }), ct);
+            return;
+        }
+
+        Response.ContentType = "text/event-stream";
+        // Live delivery: disable server output buffering so each event reaches
+        // the client as soon as it is flushed, not when the action completes.
+        HttpContext.Features.Get<IHttpResponseBodyFeature>()?.DisableBuffering();
+
+        async Task WriteEventAsync(object payload)
+        {
+            await Response.WriteAsync($"data: {JsonSerializer.Serialize(payload)}\n\n", ct);
+            await Response.Body.FlushAsync(ct);
+        }
+
+        try
+        {
+            await foreach (var delta in _ragService
+                .AskStreamingAsync(model.Query, modelId: assistant.Id)
+                .WithCancellation(ct))
+            {
+                await WriteEventAsync(new { delta });
+            }
+
+            await WriteEventAsync(new { done = true, usedModel = assistant.Label });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error streaming question: {Query}", model.Query);
+            await WriteEventAsync(new { error = "El servicio RAG está temporalmente no disponible. Intente de nuevo más tarde." });
         }
     }
 }

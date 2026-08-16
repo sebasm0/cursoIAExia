@@ -158,6 +158,89 @@ public class RagServiceRoutingTests
             It.IsAny<string?>(),
             It.IsAny<CancellationToken>()), Times.Exactly(3));
     }
+
+    // ── DocsChat-3: streaming variant of AskAsync ──
+    // AskStreamingAsync must keep the same routing contracts as AskAsync — the
+    // resolved model reaches both the reranker and the streaming generation call,
+    // retrieval runs once, and null/blank ids resolve to the default model — while
+    // yielding the chat client's text updates in order.
+
+    [Fact]
+    public async Task AskStreamingAsync_ReturnsUpdatesFromChatClient()
+    {
+        var harness = new RoutingHarness();
+
+        var updates = new List<string>();
+        await foreach (var update in harness.Service.AskStreamingAsync("What is the capital of France?"))
+        {
+            updates.Add(update);
+        }
+
+        // The mock streams "Mock", "ed", " answer." — order and content prove the
+        // updates flow through untouched.
+        Assert.Equal(["Mock", "ed", " answer."], updates);
+    }
+
+    [Fact]
+    public async Task AskStreamingAsync_KnownModelId_SetsModelIdOnChatOptions()
+    {
+        var harness = new RoutingHarness();
+
+        await foreach (var _ in harness.Service.AskStreamingAsync("What is the capital of France?", modelId: "fast")) { }
+
+        Assert.Equal("qwen2.5:1.5b", harness.CapturedOptions?.ModelId);
+    }
+
+    [Fact]
+    public async Task AskStreamingAsync_KnownModelId_SetsModelIdOnRerank()
+    {
+        var harness = new RoutingHarness();
+
+        await foreach (var _ in harness.Service.AskStreamingAsync("What is the capital of France?", modelId: "fast")) { }
+
+        // Latency-fix contract (9c6292f): the resolved model must reach the
+        // reranker in the streaming path too, agreeing with the generation call.
+        Assert.Equal("qwen2.5:1.5b", harness.CapturedRerankOptions?.ModelId);
+        Assert.Equal(harness.CapturedOptions?.ModelId, harness.CapturedRerankOptions?.ModelId);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task AskStreamingAsync_NullOrBlankModelId_UsesDefaultModel(string? modelId)
+    {
+        var harness = new RoutingHarness();
+
+        await foreach (var _ in harness.Service.AskStreamingAsync("Question?", modelId: modelId)) { }
+
+        Assert.Equal("phi3:mini", harness.CapturedOptions?.ModelId);
+    }
+
+    [Fact]
+    public async Task AskStreamingAsync_RunsRetrievalPipelineOnce()
+    {
+        var harness = new RoutingHarness();
+
+        await foreach (var _ in harness.Service.AskStreamingAsync("Q1", modelId: "fast")) { }
+
+        // A single streaming request must run embedding, hybrid search and rerank
+        // exactly once — streaming only changes the final generation call (ASEL-5/6).
+        harness.EmbeddingGenerator.Verify(g => g.GenerateAsync(
+            It.IsAny<IEnumerable<string>>(),
+            It.IsAny<EmbeddingGenerationOptions?>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        harness.VectorStore.Verify(v => v.HybridSearchAsync(
+            It.IsAny<ReadOnlyMemory<float>>(),
+            It.IsAny<string>(),
+            It.IsAny<int>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        harness.Reranker.Verify(r => r.RerankAsync(
+            It.IsAny<string>(),
+            It.IsAny<IReadOnlyList<SearchResult>>(),
+            It.IsAny<string?>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
 }
 
 /// <summary>
@@ -229,6 +312,21 @@ internal sealed class RoutingHarness
                         .LastOrDefault();
                 })
             .ReturnsAsync(new ChatResponse(new ChatMessage(ChatRole.Assistant, "Mocked answer.")));
+        chat
+            .Setup(c => c.GetStreamingResponseAsync(
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<ChatOptions?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<ChatMessage>, ChatOptions?, CancellationToken>(
+                (messages, options, _) =>
+                {
+                    CapturedOptions = options;
+                    CapturedPrompt = messages
+                        .Where(m => m.Role == ChatRole.User)
+                        .Select(m => m.Text)
+                        .LastOrDefault();
+                })
+            .Returns(StreamingUpdates());
 
         var catalog = new AssistantCatalog("phi3:mini",
         [
@@ -243,5 +341,17 @@ internal sealed class RoutingHarness
             Reranker.Object,
             chat.Object,
             catalog);
+    }
+
+    /// <summary>
+    /// Canned streaming deltas for <see cref="IChatClient.GetStreamingResponseAsync"/>:
+    /// three text updates that concatenate to "Mocked answer." so streaming tests
+    /// can assert the deltas arrive in order and unmodified.
+    /// </summary>
+    private static async IAsyncEnumerable<ChatResponseUpdate> StreamingUpdates()
+    {
+        yield return new ChatResponseUpdate(ChatRole.Assistant, "Mock");
+        yield return new ChatResponseUpdate(ChatRole.Assistant, "ed");
+        yield return new ChatResponseUpdate(ChatRole.Assistant, " answer.");
     }
 }
