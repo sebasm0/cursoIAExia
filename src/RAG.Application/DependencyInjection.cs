@@ -9,6 +9,7 @@ public static class DependencyInjection
     {
         services.AddSingleton<IngestionService>();
         services.AddSingleton<RagService>();
+        services.AddSingleton<ChatHistoryService>();
 
         return services;
     }
