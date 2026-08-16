@@ -21,8 +21,16 @@ switch (aiProvider)
         var chatModel = builder.Configuration["AI:Ollama:ChatModel"] ?? "phi3:mini";
         var embeddingModel = builder.Configuration["AI:Ollama:EmbeddingModel"] ?? "nomic-embed-text";
 
+        // Long local-model generations routinely exceed the .NET default 100s
+        // HttpClient timeout; AI:Ollama:TimeoutSeconds makes it configurable
+        // (default 300s) so slow CPU inference does not get cancelled.
+        var ollamaTimeout = TimeSpan.FromSeconds(
+            builder.Configuration.GetValue<int>("AI:Ollama:TimeoutSeconds", 300));
+        var ollamaHttp = new HttpClient { Timeout = ollamaTimeout };
+        builder.Services.AddKeyedSingleton<HttpClient>("ollama", ollamaHttp);
+
         builder.Services.AddSingleton<IChatClient>(
-            new OllamaChatClient(ollamaBaseUrl, chatModel));
+            new OllamaChatClient(ollamaBaseUrl, chatModel, ollamaHttp));
         builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
             new OllamaEmbeddingGenerator(ollamaBaseUrl, embeddingModel));
 
